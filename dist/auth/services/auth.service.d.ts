@@ -1,0 +1,92 @@
+import { Model } from 'mongoose';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
+import { UserDocument } from '../../users/entities/user.entity';
+import { CompanyDocument } from '../../companies/entities/company.entity';
+import { EmailService } from '../../common/services/email.service';
+import { ValidationService } from '../../common/services/validation.service';
+import { SignupDto } from '../dto/signup.dto';
+import { LoginDto, VerifyOtpDto, ResendOtpDto, ChangeEmailDto } from '../dto/login.dto';
+import { InviteUserDto, AcceptInvitationDto, ResendInvitationDto } from '../dto/invitation.dto';
+import { UpdateUserDto, UpdateUserStatusDto, RemoveUserDto } from '../dto/user-management.dto';
+import { UserRole, UserStatus, AuthTokens } from '../../common/interfaces/auth.interface';
+export declare class AuthService {
+    private userModel;
+    private companyModel;
+    private jwtService;
+    private configService;
+    private emailService;
+    private validationService;
+    private readonly logger;
+    constructor(userModel: Model<UserDocument>, companyModel: Model<CompanyDocument>, jwtService: JwtService, configService: ConfigService, emailService: EmailService, validationService: ValidationService);
+    signup(signupDto: SignupDto): Promise<{
+        message: string;
+        userId: string;
+        companyId: string;
+        requiresApproval: boolean;
+    }>;
+    login(loginDto: LoginDto, ip?: string, userAgent?: string): Promise<{
+        message: string;
+        otpSent: boolean;
+    }>;
+    resendOtp(resendOtpDto: ResendOtpDto, ip?: string): Promise<{
+        message: string;
+        otpSent: boolean;
+    }>;
+    verifyOtp(verifyOtpDto: VerifyOtpDto): Promise<{
+        user: any;
+        company: any;
+        accessToken: string;
+        refreshToken: string;
+    }>;
+    refreshToken(refreshToken: string): Promise<AuthTokens>;
+    private generateTokens;
+    private sanitizeUser;
+    private sanitizeCompany;
+    inviteUser(inviteUserDto: InviteUserDto, invitedBy: UserDocument): Promise<{
+        message: string;
+        invitedUser: {
+            id: unknown;
+            email: string;
+            name: string;
+            role: UserRole;
+            status: UserStatus;
+        };
+    }>;
+    resendInvitation(resendInvitationDto: ResendInvitationDto, invitedBy: UserDocument): Promise<{
+        message: string;
+    }>;
+    acceptInvitation(acceptInvitationDto: AcceptInvitationDto): Promise<{
+        user: any;
+        company: any;
+        message: string;
+        accessToken: string;
+        refreshToken: string;
+    }>;
+    updateUser(userId: string, updateUserDto: UpdateUserDto, updatedBy: UserDocument): Promise<{
+        message: string;
+        user: any;
+    }>;
+    updateUserStatus(userId: string, updateUserStatusDto: UpdateUserStatusDto, updatedBy: UserDocument): Promise<{
+        message: string;
+        user: any;
+    }>;
+    removeUser(userId: string, removeUserDto: RemoveUserDto, removedBy: UserDocument): Promise<{
+        message: string;
+        transferInitiated: string | false | undefined;
+    }>;
+    changeEmail(userId: string, changeEmailDto: ChangeEmailDto): Promise<{
+        message: string;
+        user: any;
+    }>;
+    getCompanyUsers(companyId: string, page?: number, limit?: number, status?: UserStatus): Promise<{
+        users: any[];
+        pagination: {
+            page: number;
+            limit: number;
+            total: number;
+            pages: number;
+        };
+    }>;
+    getUserById(userId: string): Promise<UserDocument>;
+}
