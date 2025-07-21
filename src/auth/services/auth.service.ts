@@ -396,11 +396,9 @@ export class AuthService {
   }
 
   // User Invitation Methods
-async inviteUser(inviteUserDto: InviteUserDto, invitedBy: UserDocument, ip?: string) {
+async inviteUser(inviteUserDto: InviteUserDto, invitedBy: UserDocument) {
   const { email, name, role, permissions, message } = inviteUserDto;
   const inviteUser = await this.userModel.findOne({ _id: invitedBy._id });
-  const now = new Date();
-  const otp = this.validationService.generateOtp();
   const expiresAt = new Date();
   expiresAt.setMinutes(
     expiresAt.getMinutes() + this.configService.get('security.otpExpiresInMinutes'),
@@ -446,16 +444,7 @@ async inviteUser(inviteUserDto: InviteUserDto, invitedBy: UserDocument, ip?: str
     invitedBy: invitedBy._id,
     phone: '',
     timezone: 'UTC',
-    otp: {
-      code: otp,
-      expiresAt,
-      attempts: 0,
-      verified: false,
-    },
-    lastOtpRequest: now,
-    otpRequestCount: 1,
-    lastLoginIp: ip,
-  });
+});
 
   await user.save();
 
@@ -467,8 +456,7 @@ async inviteUser(inviteUserDto: InviteUserDto, invitedBy: UserDocument, ip?: str
       invitedBy.name,
       (invitedBy.companyId as any).name,
       invitationToken,
-      message, // ✅ optional string
-      otp      // ✅ defined above
+      message, // ✅ optional string  // ✅ defined above
     );
   } catch (error) {
     await this.userModel.findByIdAndDelete(user._id);
@@ -656,10 +644,10 @@ async inviteUser(inviteUserDto: InviteUserDto, invitedBy: UserDocument, ip?: str
 
   async removeUser(userId: string, removeUserDto: RemoveUserDto, removedBy: UserDocument) {
     const { reason, transferData, transferToUserId } = removeUserDto;
-    
-    const user = await this.userModel.findOne({ 
-      _id: userId, 
-      companyId: removedBy.companyId 
+
+    const user = await this.userModel.findOne({
+      _id: userId,
+      companyId: new Types.ObjectId(removedBy.companyId)
     });
 
     if (!user) {
@@ -681,7 +669,7 @@ async inviteUser(inviteUserDto: InviteUserDto, invitedBy: UserDocument, ip?: str
         _id: transferToUserId, 
         companyId: removedBy.companyId 
       });
-      
+
       if (!transferToUser) {
         throw new BadRequestException('Transfer target user not found');
       }

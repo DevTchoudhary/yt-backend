@@ -43,7 +43,7 @@ export declare class AuthService {
     private generateTokens;
     private sanitizeUser;
     private sanitizeCompany;
-    inviteUser(inviteUserDto: InviteUserDto, invitedBy: UserDocument, ip?: string): Promise<{
+    inviteUser(inviteUserDto: InviteUserDto, invitedBy: UserDocument): Promise<{
         message: string;
         invitedUser: {
             id: unknown;
