@@ -583,7 +583,7 @@ async inviteUser(inviteUserDto: InviteUserDto, invitedBy: UserDocument, ip?: str
   async updateUser(userId: string, updateUserDto: UpdateUserDto, updatedBy: UserDocument) {
     const user = await this.userModel.findOne({ 
       _id: userId, 
-      companyId: updatedBy.companyId 
+      companyId: new Types.ObjectId(updatedBy.companyId)
     });
 
     if (!user) {

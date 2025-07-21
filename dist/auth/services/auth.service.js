@@ -429,7 +429,7 @@ let AuthService = AuthService_1 = class AuthService {
     async updateUser(userId, updateUserDto, updatedBy) {
         const user = await this.userModel.findOne({
             _id: userId,
-            companyId: updatedBy.companyId
+            companyId: new mongoose_2.Types.ObjectId(updatedBy.companyId)
         });
         if (!user) {
             throw new common_1.BadRequestException('User not found');
