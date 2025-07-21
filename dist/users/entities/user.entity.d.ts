@@ -7,7 +7,7 @@ export declare class User implements BaseEntity {
     name: string;
     role: UserRole;
     companyId: Types.ObjectId;
-    phone: string;
+    phone?: string;
     timezone: string;
     status: UserStatus;
     lastLogin?: Date;

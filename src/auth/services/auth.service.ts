@@ -7,7 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { User, UserDocument } from '../../users/entities/user.entity';
@@ -396,71 +396,100 @@ export class AuthService {
   }
 
   // User Invitation Methods
-  async inviteUser(inviteUserDto: InviteUserDto, invitedBy: UserDocument) {
-    const { email, name, role, permissions, message } = inviteUserDto;
+async inviteUser(inviteUserDto: InviteUserDto, invitedBy: UserDocument, ip?: string) {
+  const { email, name, role, permissions, message } = inviteUserDto;
+  const inviteUser = await this.userModel.findOne({ _id: invitedBy._id });
+  const now = new Date();
+  const otp = this.validationService.generateOtp();
+  const expiresAt = new Date();
+  expiresAt.setMinutes(
+    expiresAt.getMinutes() + this.configService.get('security.otpExpiresInMinutes'),
+  );
 
-    // Check if user already exists
-    const existingUser = await this.userModel.findOne({ email });
-    if (existingUser) {
-      throw new ConflictException('User with this email already exists');
-    }
+  if(!inviteUser){
+    throw new BadRequestException('User not found')
+  }
 
-    // Validate email
-    if (!this.validationService.isValidBusinessEmail(email)) {
-      throw new BadRequestException('Please use a valid business email address');
-    }
+  // if(inviteUser.status !== UserStatus.ACTIVE){
+  //   throw new BadRequestException('User is not active')
+  // }
 
-    // Generate invitation token
-    const invitationToken = this.validationService.generateSecureToken();
-    const invitationExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+  if(inviteUser){
+    console.log(inviteUser)
+  }
 
-    // Create user with pending status
-    const user = new this.userModel({
+  // ✅ Check if user already exists
+  const existingUser = await this.userModel.findOne({ email });
+  if (existingUser) {
+    throw new ConflictException('User with this email already exists');
+  }
+
+  // ✅ Validate email
+  if (!this.validationService.isValidBusinessEmail(email)) {
+    throw new BadRequestException('Please use a valid business email address');
+  }
+
+  // ✅ Generate invitation token
+  const invitationToken = this.validationService.generateSecureToken();
+  const invitationExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+  // ✅ Create user with PENDING status and OTP
+  const user = new this.userModel({
+    email,
+    name,
+    role,
+    permissions: permissions || [],
+    companyId: invitedBy.companyId,
+    status: UserStatus.PENDING,
+    invitationToken,
+    invitationExpiry,
+    invitedBy: invitedBy._id,
+    phone: '',
+    timezone: 'UTC',
+    otp: {
+      code: otp,
+      expiresAt,
+      attempts: 0,
+      verified: false,
+    },
+    lastOtpRequest: now,
+    otpRequestCount: 1,
+    lastLoginIp: ip,
+  });
+
+  await user.save();
+
+  // ✅ Send invitation email
+  try {
+    await this.emailService.sendInvitationEmail(
       email,
       name,
-      role,
-      permissions: permissions || [],
-      companyId: invitedBy.companyId,
-      status: UserStatus.PENDING,
+      invitedBy.name,
+      (invitedBy.companyId as any).name,
       invitationToken,
-      invitationExpiry,
-      invitedBy: invitedBy._id,
-      phone: '', // Will be filled during invitation acceptance
-      timezone: 'UTC',
-    });
-
-    await user.save();
-
-    // Send invitation email
-    try {
-      await this.emailService.sendInvitationEmail(
-        email,
-        name,
-        invitedBy.name,
-        (invitedBy.companyId as any).name,
-        invitationToken,
-        message,
-      );
-    } catch (error) {
-      // Rollback user creation if email fails
-      await this.userModel.findByIdAndDelete(user._id);
-      this.logger.error('Failed to send invitation email', error);
-      throw new BadRequestException('Failed to send invitation. Please try again.');
-    }
-
-    this.logger.log(`User invitation sent to ${email} by ${invitedBy.email}`);
-
-    return {
-      message: 'Invitation sent successfully',
-      invitedUser: {
-        id: user._id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        status: user.status,
-      },
-    };
+      message, // ✅ optional string
+      otp      // ✅ defined above
+    );
+  } catch (error) {
+    await this.userModel.findByIdAndDelete(user._id);
+    this.logger.error('Failed to send invitation email', error);
+    throw new BadRequestException('Failed to send invitation. Please try again.');
   }
+
+  this.logger.log(`User invitation sent to ${email} by ${invitedBy.email}`);
+
+  return {
+    message: 'Invitation sent successfully',
+    invitedUser: {
+      id: user._id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      status: user.status,
+    },
+  };
+}
+
 
   async resendInvitation(resendInvitationDto: ResendInvitationDto, invitedBy: UserDocument) {
     const { email } = resendInvitationDto;
@@ -586,8 +615,8 @@ export class AuthService {
     const { status, reason } = updateUserStatusDto;
     
     const user = await this.userModel.findOne({ 
-      _id: userId, 
-      companyId: updatedBy.companyId 
+      _id: userId,
+      companyId: new Types.ObjectId(updatedBy.companyId),
     });
 
     if (!user) {

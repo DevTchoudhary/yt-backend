@@ -268,7 +268,7 @@ export class AuthController {
     @Body() updateUserStatusDto: UpdateUserStatusDto,
     @CurrentUser() user: RequestUser,
   ) {
-    const currentUser = await this.authService.getUserById(user.userId);
+    const currentUser = await this.authService.getUserById(user.userId );
     return this.authService.updateUserStatus(userId, updateUserStatusDto, currentUser);
   }
 

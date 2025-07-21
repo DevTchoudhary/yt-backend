@@ -78,14 +78,14 @@ let EmailService = EmailService_1 = class EmailService {
             throw error;
         }
     }
-    async sendInvitationEmail(email, name, inviterName, companyName, invitationToken, message) {
+    async sendInvitationEmail(email, name, inviterName, companyName, invitationToken, message, otp) {
         try {
             const invitationUrl = `${this.configService.get('FRONTEND_URL', 'http://localhost:3000')}/accept-invitation?token=${invitationToken}`;
             const mailOptions = {
                 from: this.configService.get('SMTP_FROM'),
                 to: email,
                 subject: `Invitation to join ${companyName} on Yukti Platform`,
-                html: this.getInvitationEmailTemplate(name, inviterName, companyName, invitationUrl, message),
+                html: this.getInvitationEmailTemplate(name, inviterName, companyName, invitationUrl, message, otp),
             };
             await this.transporter.sendMail(mailOptions);
             this.logger.log(`Invitation email sent to ${email}`);
@@ -170,21 +170,22 @@ let EmailService = EmailService_1 = class EmailService {
       </div>
     `;
     }
-    getInvitationEmailTemplate(name, inviterName, companyName, invitationUrl, message) {
+    getInvitationEmailTemplate(name, inviterName, companyName, invitationUrl, message, otp) {
         return `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2>You're Invited to Join ${companyName}!</h2>
-        <p>Hello ${name},</p>
-        <p>${inviterName} has invited you to join <strong>${companyName}</strong> on Yukti Platform.</p>
-        ${message ? `<div style="background-color: #f5f5f5; padding: 15px; margin: 20px 0; border-radius: 5px; font-style: italic;">"${message}"</div>` : ''}
-        <p>Yukti Platform provides comprehensive SRE tools for infrastructure management, monitoring, and incident response.</p>
-        <div style="text-align: center; margin: 30px 0;">
-          <a href="${invitationUrl}" style="background-color: #2e7d32; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">Accept Invitation</a>
-        </div>
-        <p>This invitation will expire in 7 days. If you have any questions, please contact ${inviterName} or our support team.</p>
-        <p>Best regards,<br>Yukti Team</p>
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2>You're Invited to Join ${companyName}!</h2>
+      <p>Hello ${name},</p>
+      <p>${inviterName} has invited you to join <strong>${companyName}</strong> on Yukti Platform.</p>
+      ${message ? `<div style="background-color: #f5f5f5; padding: 15px; margin: 20px 0; border-radius: 5px; font-style: italic;">"${message}"</div>` : ''}
+      <p>Yukti Platform provides comprehensive SRE tools for infrastructure management, monitoring, and incident response.</p>
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${invitationUrl}" style="background-color: #2e7d32; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">Accept Invitation</a>
       </div>
-    `;
+      <p>This invitation will expire in 7 days. If you have any questions, please contact ${inviterName} or our support team.</p>
+      <p>Best regards,<br>Yukti Team</p>
+      ${otp ? `<p><strong>Your OTP is: ${otp}</strong></p>` : ''}
+    </div>
+  `;
     }
     getPasswordResetEmailTemplate(name, resetUrl) {
         return `

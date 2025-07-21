@@ -302,8 +302,19 @@ let AuthService = AuthService_1 = class AuthService {
             id: sanitized._id,
         };
     }
-    async inviteUser(inviteUserDto, invitedBy) {
+    async inviteUser(inviteUserDto, invitedBy, ip) {
         const { email, name, role, permissions, message } = inviteUserDto;
+        const inviteUser = await this.userModel.findOne({ _id: invitedBy._id });
+        const now = new Date();
+        const otp = this.validationService.generateOtp();
+        const expiresAt = new Date();
+        expiresAt.setMinutes(expiresAt.getMinutes() + this.configService.get('security.otpExpiresInMinutes'));
+        if (!inviteUser) {
+            throw new common_1.BadRequestException('User not found');
+        }
+        if (inviteUser) {
+            console.log(inviteUser);
+        }
         const existingUser = await this.userModel.findOne({ email });
         if (existingUser) {
             throw new common_1.ConflictException('User with this email already exists');
@@ -325,10 +336,19 @@ let AuthService = AuthService_1 = class AuthService {
             invitedBy: invitedBy._id,
             phone: '',
             timezone: 'UTC',
+            otp: {
+                code: otp,
+                expiresAt,
+                attempts: 0,
+                verified: false,
+            },
+            lastOtpRequest: now,
+            otpRequestCount: 1,
+            lastLoginIp: ip,
         });
         await user.save();
         try {
-            await this.emailService.sendInvitationEmail(email, name, invitedBy.name, invitedBy.companyId.name, invitationToken, message);
+            await this.emailService.sendInvitationEmail(email, name, invitedBy.name, invitedBy.companyId.name, invitationToken, message, otp);
         }
         catch (error) {
             await this.userModel.findByIdAndDelete(user._id);
@@ -432,7 +452,7 @@ let AuthService = AuthService_1 = class AuthService {
         const { status, reason } = updateUserStatusDto;
         const user = await this.userModel.findOne({
             _id: userId,
-            companyId: updatedBy.companyId
+            companyId: new mongoose_2.Types.ObjectId(updatedBy.companyId),
         });
         if (!user) {
             throw new common_1.BadRequestException('User not found');

@@ -22,8 +22,8 @@ export class User implements BaseEntity {
   @Prop({ type: Types.ObjectId, ref: 'Company', required: true })
   companyId: Types.ObjectId;
 
-  @Prop({ required: true, trim: true })
-  phone: string;
+  @Prop({ required: false, trim: true })
+  phone?: string;
 
   @Prop({ required: true, default: 'UTC' })
   timezone: string;

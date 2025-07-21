@@ -20,6 +20,7 @@ class InviteUserDto {
     role;
     permissions;
     message;
+    phone;
 }
 exports.InviteUserDto = InviteUserDto;
 __decorate([
@@ -44,7 +45,7 @@ __decorate([
 __decorate([
     (0, swagger_1.ApiPropertyOptional)({
         type: [String],
-        example: ['read:projects', 'write:incidents']
+        example: ['read:projects', 'write:incident']
     }),
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsArray)(),
@@ -57,6 +58,12 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], InviteUserDto.prototype, "message", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, swagger_1.ApiPropertyOptional)(),
+    __metadata("design:type", String)
+], InviteUserDto.prototype, "phone", void 0);
 class AcceptInvitationDto {
     token;
     otp;
