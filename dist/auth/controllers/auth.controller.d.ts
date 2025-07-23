@@ -34,6 +34,7 @@ export declare class AuthController {
             name: string;
             role: import("../../common/interfaces/auth.interface").UserRole;
             status: import("../../common/interfaces/auth.interface").UserStatus;
+            phone: import("../../common/interfaces/auth.interface").UserStatus;
         };
     }>;
     bulkInviteUsers(bulkInviteDto: BulkInviteDto, user: RequestUser): Promise<{
@@ -81,7 +82,7 @@ export declare class AuthController {
     removeUser(userId: string, removeUserDto: RemoveUserDto, user: RequestUser): Promise<{
         message: string;
         transferInitiated: string | false | undefined;
-    }>;
+    } | undefined>;
     bulkUserAction(bulkUserActionDto: BulkUserActionDto, user: RequestUser): Promise<{
         message: string;
         results: {

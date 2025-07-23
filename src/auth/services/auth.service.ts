@@ -397,7 +397,7 @@ export class AuthService {
 
   // User Invitation Methods
 async inviteUser(inviteUserDto: InviteUserDto, invitedBy: UserDocument) {
-  const { email, name, role, permissions, message } = inviteUserDto;
+  const { email, name, role, permissions, message, phone } = inviteUserDto;
   const inviteUser = await this.userModel.findOne({ _id: invitedBy._id });
   const expiresAt = new Date();
   expiresAt.setMinutes(
@@ -431,7 +431,6 @@ async inviteUser(inviteUserDto: InviteUserDto, invitedBy: UserDocument) {
   const invitationToken = this.validationService.generateSecureToken();
   const invitationExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
-  // ✅ Create user with PENDING status and OTP
   const user = new this.userModel({
     email,
     name,
@@ -442,7 +441,7 @@ async inviteUser(inviteUserDto: InviteUserDto, invitedBy: UserDocument) {
     invitationToken,
     invitationExpiry,
     invitedBy: invitedBy._id,
-    phone: '',
+    phone,
     timezone: 'UTC',
 });
 
@@ -474,6 +473,7 @@ async inviteUser(inviteUserDto: InviteUserDto, invitedBy: UserDocument) {
       name: user.name,
       role: user.role,
       status: user.status,
+      phone:user.status,
     },
   };
 }
@@ -645,6 +645,7 @@ async inviteUser(inviteUserDto: InviteUserDto, invitedBy: UserDocument) {
   async removeUser(userId: string, removeUserDto: RemoveUserDto, removedBy: UserDocument) {
     const { reason, transferData, transferToUserId } = removeUserDto;
 
+   try {
     const user = await this.userModel.findOne({
       _id: userId,
       companyId: new Types.ObjectId(removedBy.companyId)
@@ -693,6 +694,10 @@ async inviteUser(inviteUserDto: InviteUserDto, invitedBy: UserDocument) {
       message: 'User removed successfully',
       transferInitiated: transferData && transferToUserId,
     };
+  
+   } catch (error) {
+    console.error('Error removing user:', error);
+   }
   }
 
   async changeEmail(userId: string, changeEmailDto: ChangeEmailDto) {

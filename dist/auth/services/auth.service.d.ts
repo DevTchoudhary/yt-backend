@@ -51,6 +51,7 @@ export declare class AuthService {
             name: string;
             role: UserRole;
             status: UserStatus;
+            phone: UserStatus;
         };
     }>;
     resendInvitation(resendInvitationDto: ResendInvitationDto, invitedBy: UserDocument): Promise<{
@@ -74,7 +75,7 @@ export declare class AuthService {
     removeUser(userId: string, removeUserDto: RemoveUserDto, removedBy: UserDocument): Promise<{
         message: string;
         transferInitiated: string | false | undefined;
-    }>;
+    } | undefined>;
     changeEmail(userId: string, changeEmailDto: ChangeEmailDto): Promise<{
         message: string;
         user: any;
