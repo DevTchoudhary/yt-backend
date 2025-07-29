@@ -1,4 +1,11 @@
-import { IsEmail, IsString, IsNotEmpty, IsEnum, IsOptional, IsArray, IsBoolean } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsEnum,
+  IsOptional,
+  IsArray,
+  IsBoolean,
+} from 'class-validator';
 import { Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { UserRole, UserStatus } from '../../common/interfaces/auth.interface';
@@ -7,7 +14,7 @@ export class UpdateUserDto {
   @ApiPropertyOptional({ example: 'John Doe Updated' })
   @IsOptional()
   @IsString()
-  @Transform(({ value }) => value?.trim())
+  @Transform(({ value }: { value: string }) => value?.trim())
   name?: string;
 
   @ApiPropertyOptional({ enum: UserRole })
@@ -15,9 +22,9 @@ export class UpdateUserDto {
   @IsEnum(UserRole)
   role?: UserRole;
 
-  @ApiPropertyOptional({ 
-    type: [String], 
-    example: ['read:projects', 'write:incidents'] 
+  @ApiPropertyOptional({
+    type: [String],
+    example: ['read:projects', 'write:incidents'],
   })
   @IsOptional()
   @IsArray()
@@ -80,9 +87,9 @@ export class UpdateUserRoleDto {
   @IsEnum(UserRole)
   role: UserRole;
 
-  @ApiPropertyOptional({ 
-    type: [String], 
-    example: ['read:projects', 'write:incidents'] 
+  @ApiPropertyOptional({
+    type: [String],
+    example: ['read:projects', 'write:incidents'],
   })
   @IsOptional()
   @IsArray()
@@ -96,9 +103,9 @@ export class BulkUserActionDto {
   @IsString({ each: true })
   userIds: string[];
 
-  @ApiProperty({ 
+  @ApiProperty({
     enum: ['activate', 'deactivate', 'suspend', 'delete'],
-    example: 'activate'
+    example: 'activate',
   })
   @IsEnum(['activate', 'deactivate', 'suspend', 'delete'])
   action: 'activate' | 'deactivate' | 'suspend' | 'delete';

@@ -35,7 +35,7 @@ let CompaniesService = CompaniesService_1 = class CompaniesService {
         this.configService = configService;
     }
     async findAll(query) {
-        const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc', status, search } = query;
+        const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc', status, search, } = query;
         const filter = {};
         if (status) {
             filter.status = status;
@@ -48,7 +48,9 @@ let CompaniesService = CompaniesService_1 = class CompaniesService {
             ];
         }
         const skip = (page - 1) * limit;
-        const sortOptions = { [sortBy]: sortOrder === 'asc' ? 1 : -1 };
+        const sortOptions = {
+            [sortBy]: sortOrder === 'asc' ? 1 : -1,
+        };
         const [companies, total] = await Promise.all([
             this.companyModel
                 .find(filter)
@@ -96,7 +98,7 @@ let CompaniesService = CompaniesService_1 = class CompaniesService {
         Object.assign(company, updateCompanyDto);
         return company.save();
     }
-    async approve(companyId, approvedBy, notes) {
+    async approve(companyId, approvedBy) {
         const company = await this.companyModel.findById(companyId);
         if (!company) {
             throw new common_1.NotFoundException('Company not found');

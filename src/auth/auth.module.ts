@@ -20,7 +20,7 @@ import { ValidationService } from '../common/services/validation.service';
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
+      useFactory: (configService: ConfigService) => ({
         secret: configService.get('jwt.secret'),
         signOptions: {
           expiresIn: configService.get('jwt.expiresIn'),

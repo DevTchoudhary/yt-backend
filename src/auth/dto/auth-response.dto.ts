@@ -1,5 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { UserRole, UserStatus, CompanyStatus } from '../../common/interfaces/auth.interface';
+import {
+  UserRole,
+  UserStatus,
+  CompanyStatus,
+} from '../../common/interfaces/auth.interface';
 
 export class UserResponseDto {
   @ApiProperty()
@@ -17,8 +21,8 @@ export class UserResponseDto {
   @ApiProperty()
   companyId: string;
 
-  @ApiProperty()
-  phone: string;
+  @ApiProperty({ required: false })
+  phone?: string;
 
   @ApiProperty()
   timezone: string;
@@ -35,11 +39,11 @@ export class UserResponseDto {
   @ApiProperty()
   lastLogin?: Date;
 
-  @ApiProperty()
-  createdAt: Date;
+  @ApiProperty({ required: false })
+  createdAt?: Date;
 
-  @ApiProperty()
-  updatedAt: Date;
+  @ApiProperty({ required: false })
+  updatedAt?: Date;
 }
 
 export class CompanyResponseDto {
@@ -64,14 +68,14 @@ export class CompanyResponseDto {
   @ApiProperty()
   onboardingCompleted: boolean;
 
-  @ApiProperty()
-  dashboardUrl: string;
+  @ApiProperty({ required: false })
+  dashboardUrl?: string;
 
-  @ApiProperty()
-  createdAt: Date;
+  @ApiProperty({ required: false })
+  createdAt?: Date;
 
-  @ApiProperty()
-  updatedAt: Date;
+  @ApiProperty({ required: false })
+  updatedAt?: Date;
 }
 
 export class AuthResponseDto {
@@ -84,8 +88,8 @@ export class AuthResponseDto {
   @ApiProperty({ type: UserResponseDto })
   user: UserResponseDto;
 
-  @ApiProperty({ type: CompanyResponseDto })
-  company: CompanyResponseDto;
+  @ApiProperty({ type: CompanyResponseDto, required: false })
+  company?: CompanyResponseDto | null;
 }
 
 export class LoginResponseDto {

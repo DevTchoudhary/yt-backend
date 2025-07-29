@@ -1,4 +1,11 @@
-import { IsEmail, IsString, IsNotEmpty, IsEnum, IsOptional, IsArray } from 'class-validator';
+import {
+  IsEmail,
+  IsString,
+  IsNotEmpty,
+  IsEnum,
+  IsOptional,
+  IsArray,
+} from 'class-validator';
 import { Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { UserRole } from '../../common/interfaces/auth.interface';
@@ -7,22 +14,22 @@ export class InviteUserDto {
   @ApiProperty({ example: 'john.doe@company.com' })
   @IsEmail()
   @IsNotEmpty()
-  @Transform(({ value }) => value?.toLowerCase().trim())
+  @Transform(({ value }: { value: string }) => value?.toLowerCase().trim())
   email: string;
 
   @ApiProperty({ example: 'John Doe' })
   @IsString()
   @IsNotEmpty()
-  @Transform(({ value }) => value?.trim())
+  @Transform(({ value }: { value: string }) => value?.trim())
   name: string;
 
   @ApiProperty({ enum: UserRole, example: UserRole.USER })
   @IsEnum(UserRole)
   role: UserRole;
 
-  @ApiPropertyOptional({ 
-    type: [String], 
-    example: ['read:projects', 'write:incident'] 
+  @ApiPropertyOptional({
+    type: [String],
+    example: ['read:projects', 'write:incident'],
   })
   @IsOptional()
   @IsArray()
@@ -56,27 +63,27 @@ export class ResendInvitationDto {
   @ApiProperty({ example: 'john.doe@company.com' })
   @IsEmail()
   @IsNotEmpty()
-  @Transform(({ value }) => value?.toLowerCase().trim())
+  @Transform(({ value }: { value: string }) => value?.toLowerCase().trim())
   email: string;
 }
 
 export class BulkInviteDto {
-  @ApiProperty({ 
+  @ApiProperty({
     type: [InviteUserDto],
     example: [
       {
         email: 'user1@company.com',
         name: 'User One',
         role: 'user',
-        permissions: ['read:projects']
+        permissions: ['read:projects'],
       },
       {
-        email: 'user2@company.com', 
+        email: 'user2@company.com',
         name: 'User Two',
         role: 'user',
-        permissions: ['read:projects', 'write:incidents']
-      }
-    ]
+        permissions: ['read:projects', 'write:incidents'],
+      },
+    ],
   })
   @IsArray()
   invitations: InviteUserDto[];

@@ -10,10 +10,10 @@ export declare class SignupDto {
     email: string;
     companyName: string;
     companyAlias?: string;
-    businessEmail: string;
+    businessEmail?: string;
     backupEmail?: string;
-    phone: string;
-    businessAddress: BusinessAddressDto;
+    phone?: string;
+    businessAddress?: BusinessAddressDto;
     timezone?: string;
     companySize?: 'startup' | 'small' | 'medium' | 'large' | 'enterprise';
     industry?: string;

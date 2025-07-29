@@ -38,7 +38,8 @@ let JwtStrategy = class JwtStrategy extends (0, passport_1.PassportStrategy)(pas
         if (!user) {
             throw new common_1.UnauthorizedException('User not found');
         }
-        if (user.status === auth_interface_1.UserStatus.INACTIVE || user.status === auth_interface_1.UserStatus.SUSPENDED) {
+        if (user.status === auth_interface_1.UserStatus.INACTIVE ||
+            user.status === auth_interface_1.UserStatus.SUSPENDED) {
             throw new common_1.UnauthorizedException('Account is inactive');
         }
         return {

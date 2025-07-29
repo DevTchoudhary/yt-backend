@@ -8,6 +8,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ValidationService = void 0;
 const common_1 = require("@nestjs/common");
+const crypto = require("crypto");
 let ValidationService = class ValidationService {
     tempEmailDomains = [
         '10minutemail.com',
@@ -64,10 +65,28 @@ let ValidationService = class ValidationService {
             return false;
         }
         const reservedWords = [
-            'admin', 'api', 'www', 'mail', 'ftp', 'localhost', 'test',
-            'staging', 'dev', 'development', 'prod', 'production',
-            'app', 'application', 'service', 'server', 'database',
-            'yukti', 'support', 'help', 'docs', 'documentation',
+            'admin',
+            'api',
+            'www',
+            'mail',
+            'ftp',
+            'localhost',
+            'test',
+            'staging',
+            'dev',
+            'development',
+            'prod',
+            'production',
+            'app',
+            'application',
+            'service',
+            'server',
+            'database',
+            'yukti',
+            'support',
+            'help',
+            'docs',
+            'documentation',
         ];
         if (reservedWords.includes(alias.toLowerCase())) {
             return false;
@@ -100,11 +119,9 @@ let ValidationService = class ValidationService {
         return phoneRegex.test(phone.replace(/[\s-()]/g, ''));
     }
     generateSecureToken() {
-        const crypto = require('crypto');
         return crypto.randomBytes(32).toString('hex');
     }
     generateApiKey() {
-        const crypto = require('crypto');
         const prefix = 'yk_';
         const randomPart = crypto.randomBytes(24).toString('hex');
         return prefix + randomPart;
@@ -123,7 +140,7 @@ let ValidationService = class ValidationService {
         if (!/\d/.test(password)) {
             errors.push('Password must contain at least one number');
         }
-        if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+        if (!/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password)) {
             errors.push('Password must contain at least one special character');
         }
         return {

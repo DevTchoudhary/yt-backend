@@ -9,7 +9,10 @@ import { SignupDto } from '../dto/signup.dto';
 import { LoginDto, VerifyOtpDto, ResendOtpDto, ChangeEmailDto } from '../dto/login.dto';
 import { InviteUserDto, AcceptInvitationDto, ResendInvitationDto } from '../dto/invitation.dto';
 import { UpdateUserDto, UpdateUserStatusDto, RemoveUserDto } from '../dto/user-management.dto';
-import { UserRole, UserStatus, AuthTokens } from '../../common/interfaces/auth.interface';
+import { UserRole, UserStatus } from '../../common/interfaces/auth.interface';
+import { AuthResponseDto } from '../dto/auth-response.dto';
+import { UserResponseDto } from '../../users/dto/user-response.dto';
+import { CompanyResponseDto } from '../../companies/dto/company-response.dto';
 export declare class AuthService {
     private userModel;
     private companyModel;
@@ -34,15 +37,15 @@ export declare class AuthService {
         otpSent: boolean;
     }>;
     verifyOtp(verifyOtpDto: VerifyOtpDto): Promise<{
-        user: any;
+        user: UserResponseDto;
         company: any;
         accessToken: string;
         refreshToken: string;
     }>;
-    refreshToken(refreshToken: string): Promise<AuthTokens>;
+    refreshToken(refreshToken: string): Promise<AuthResponseDto>;
     private generateTokens;
-    private sanitizeUser;
-    private sanitizeCompany;
+    sanitizeUser(user: UserDocument): UserResponseDto;
+    sanitizeCompany(company: CompanyDocument | null): CompanyResponseDto | null;
     inviteUser(inviteUserDto: InviteUserDto, invitedBy: UserDocument): Promise<{
         message: string;
         invitedUser: {
@@ -58,7 +61,7 @@ export declare class AuthService {
         message: string;
     }>;
     acceptInvitation(acceptInvitationDto: AcceptInvitationDto): Promise<{
-        user: any;
+        user: UserResponseDto;
         company: any;
         message: string;
         accessToken: string;
@@ -66,22 +69,22 @@ export declare class AuthService {
     }>;
     updateUser(userId: string, updateUserDto: UpdateUserDto, updatedBy: UserDocument): Promise<{
         message: string;
-        user: any;
+        user: UserResponseDto;
     }>;
     updateUserStatus(userId: string, updateUserStatusDto: UpdateUserStatusDto, updatedBy: UserDocument): Promise<{
         message: string;
-        user: any;
+        user: UserResponseDto;
     }>;
     removeUser(userId: string, removeUserDto: RemoveUserDto, removedBy: UserDocument): Promise<{
         message: string;
-        transferInitiated: string | false | undefined;
-    } | undefined>;
+        transferInitiated: boolean;
+    }>;
     changeEmail(userId: string, changeEmailDto: ChangeEmailDto): Promise<{
         message: string;
-        user: any;
+        user: UserResponseDto;
     }>;
     getCompanyUsers(companyId: string, page?: number, limit?: number, status?: UserStatus): Promise<{
-        users: any[];
+        data: UserResponseDto[];
         pagination: {
             page: number;
             limit: number;

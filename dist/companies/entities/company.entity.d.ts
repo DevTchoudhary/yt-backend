@@ -7,7 +7,7 @@ export declare class Company implements BaseEntity {
     alias: string;
     businessEmail: string;
     backupEmail?: string;
-    businessAddress: {
+    businessAddress?: {
         street: string;
         city: string;
         state: string;

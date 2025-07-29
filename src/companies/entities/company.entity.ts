@@ -16,8 +16,8 @@ export class Company implements BaseEntity {
   @Prop({ required: true, unique: true, lowercase: true, trim: true })
   alias: string;
 
-  @Prop({ required: true, lowercase: true, trim: true })
-  businessEmail: string;
+  @Prop({ required: false, lowercase: true, trim: true })
+  businessEmail?: string;
 
   @Prop({ lowercase: true, trim: true })
   backupEmail?: string;
@@ -30,9 +30,9 @@ export class Company implements BaseEntity {
       country: { type: String, required: true },
       zipcode: { type: String, required: true },
     },
-    required: true,
+    required: false,
   })
-  businessAddress: {
+  businessAddress?: {
     street: string;
     city: string;
     state: string;
@@ -55,11 +55,16 @@ export class Company implements BaseEntity {
   @Prop({
     type: {
       alertChannels: {
-        type: [{
-          type: { type: String, enum: ['email', 'slack', 'teams', 'webhook', 'sms'] },
-          config: { type: Object },
-          enabled: { type: Boolean, default: true },
-        }],
+        type: [
+          {
+            type: {
+              type: String,
+              enum: ['email', 'slack', 'teams', 'webhook', 'sms'],
+            },
+            config: { type: Object },
+            enabled: { type: Boolean, default: true },
+          },
+        ],
         default: [],
       },
       notificationPreferences: {
@@ -106,7 +111,10 @@ export class Company implements BaseEntity {
   @Prop({
     type: {
       industry: { type: String },
-      size: { type: String, enum: ['startup', 'small', 'medium', 'large', 'enterprise'] },
+      size: {
+        type: String,
+        enum: ['startup', 'small', 'medium', 'large', 'enterprise'],
+      },
       website: { type: String },
       description: { type: String },
     },
@@ -145,7 +153,7 @@ CompanySchema.index({ createdAt: -1 });
 CompanySchema.index({ businessEmail: 1 });
 
 // Virtual for dashboard URL
-CompanySchema.virtual('dashboardUrl').get(function() {
+CompanySchema.virtual('dashboardUrl').get(function () {
   return `${process.env.DASHBOARD_BASE_URL}/${this.alias}`;
 });
 

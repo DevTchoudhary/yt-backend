@@ -6,7 +6,7 @@ export class LoginDto {
   @ApiProperty({ example: 'john@company.com' })
   @IsEmail()
   @IsNotEmpty()
-  @Transform(({ value }) => value?.toLowerCase().trim())
+  @Transform(({ value }: { value: string }) => value?.toLowerCase().trim())
   email: string;
 }
 
@@ -14,7 +14,7 @@ export class VerifyOtpDto {
   @ApiProperty({ example: 'john@company.com' })
   @IsEmail()
   @IsNotEmpty()
-  @Transform(({ value }) => value?.toLowerCase().trim())
+  @Transform(({ value }: { value: string }) => value?.toLowerCase().trim())
   email: string;
 
   @ApiProperty({ example: '123456' })
@@ -35,7 +35,7 @@ export class ResendOtpDto {
   @ApiProperty({ example: 'john@company.com' })
   @IsEmail()
   @IsNotEmpty()
-  @Transform(({ value }) => value?.toLowerCase().trim())
+  @Transform(({ value }: { value: string }) => value?.toLowerCase().trim())
   email: string;
 }
 
@@ -43,7 +43,7 @@ export class ChangeEmailDto {
   @ApiProperty({ example: 'newemail@company.com' })
   @IsEmail()
   @IsNotEmpty()
-  @Transform(({ value }) => value?.toLowerCase().trim())
+  @Transform(({ value }: { value: string }) => value?.toLowerCase().trim())
   newEmail: string;
 
   @ApiProperty({ example: '123456' })

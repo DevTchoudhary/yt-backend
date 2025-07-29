@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class ValidationService {
@@ -42,7 +43,7 @@ export class ValidationService {
 
   isValidBusinessEmail(email: string): boolean {
     const domain = email.split('@')[1]?.toLowerCase();
-    
+
     if (!domain) {
       return false;
     }
@@ -60,7 +61,7 @@ export class ValidationService {
   isValidCompanyAlias(alias: string): boolean {
     // Company alias should be URL-safe and professional
     const aliasRegex = /^[a-z0-9][a-z0-9-]*[a-z0-9]$/;
-    
+
     if (alias.length < 3 || alias.length > 50) {
       return false;
     }
@@ -71,10 +72,28 @@ export class ValidationService {
 
     // Check for reserved words
     const reservedWords = [
-      'admin', 'api', 'www', 'mail', 'ftp', 'localhost', 'test',
-      'staging', 'dev', 'development', 'prod', 'production',
-      'app', 'application', 'service', 'server', 'database',
-      'yukti', 'support', 'help', 'docs', 'documentation',
+      'admin',
+      'api',
+      'www',
+      'mail',
+      'ftp',
+      'localhost',
+      'test',
+      'staging',
+      'dev',
+      'development',
+      'prod',
+      'production',
+      'app',
+      'application',
+      'service',
+      'server',
+      'database',
+      'yukti',
+      'support',
+      'help',
+      'docs',
+      'documentation',
     ];
 
     if (reservedWords.includes(alias.toLowerCase())) {
@@ -122,38 +141,39 @@ export class ValidationService {
 
   generateSecureToken(): string {
     // Generate a secure random token for invitations, password resets, etc.
-    const crypto = require('crypto');
     return crypto.randomBytes(32).toString('hex');
   }
 
   generateApiKey(): string {
     // Generate API key with prefix
-    const crypto = require('crypto');
     const prefix = 'yk_';
     const randomPart = crypto.randomBytes(24).toString('hex');
     return prefix + randomPart;
   }
 
-  validateStrongPassword(password: string): { isValid: boolean; errors: string[] } {
+  validateStrongPassword(password: string): {
+    isValid: boolean;
+    errors: string[];
+  } {
     const errors: string[] = [];
-    
+
     if (password.length < 8) {
       errors.push('Password must be at least 8 characters long');
     }
-    
+
     if (!/[A-Z]/.test(password)) {
       errors.push('Password must contain at least one uppercase letter');
     }
-    
+
     if (!/[a-z]/.test(password)) {
       errors.push('Password must contain at least one lowercase letter');
     }
-    
+
     if (!/\d/.test(password)) {
       errors.push('Password must contain at least one number');
     }
-    
-    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+
+    if (!/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password)) {
       errors.push('Password must contain at least one special character');
     }
 

@@ -1,5 +1,4 @@
-import { IsString, IsOptional, IsEnum, IsBoolean, ValidateNested } from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsString, IsOptional, IsEnum, IsBoolean } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { CompanyStatus } from '../../common/interfaces/auth.interface';
 import { PaginationDto } from '../../common/dto/pagination.dto';

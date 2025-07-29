@@ -3,7 +3,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.appConfig = exports.validationSchema = void 0;
 const Joi = require("joi");
 exports.validationSchema = Joi.object({
-    NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
+    NODE_ENV: Joi.string()
+        .valid('development', 'production', 'test')
+        .default('development'),
     PORT: Joi.number().default(3000),
     MONGODB_URI: Joi.string().required(),
     JWT_SECRET: Joi.string().required(),

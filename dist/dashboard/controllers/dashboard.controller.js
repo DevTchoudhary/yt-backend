@@ -34,15 +34,18 @@ let DashboardController = class DashboardController {
     async getStats(user, companyId) {
         return this.dashboardService.getStats(user, companyId);
     }
-    async getRecentActivity(user, companyId) {
-        return this.dashboardService.getRecentActivity(user, companyId);
+    getRecentActivity(user) {
+        return this.dashboardService.getRecentActivity(user);
     }
 };
 exports.DashboardController = DashboardController;
 __decorate([
     (0, common_1.Get)(),
     (0, swagger_1.ApiOperation)({ summary: 'Get dashboard overview' }),
-    (0, swagger_1.ApiResponse)({ status: 200, description: 'Dashboard data retrieved successfully' }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: 'Dashboard data retrieved successfully',
+    }),
     __param(0, (0, auth_decorator_1.CurrentUser)()),
     __param(1, (0, auth_decorator_1.CompanyId)()),
     __metadata("design:type", Function),
@@ -52,7 +55,10 @@ __decorate([
 __decorate([
     (0, common_1.Get)('company/:alias'),
     (0, swagger_1.ApiOperation)({ summary: 'Get company dashboard by alias' }),
-    (0, swagger_1.ApiResponse)({ status: 200, description: 'Company dashboard retrieved successfully' }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: 'Company dashboard retrieved successfully',
+    }),
     (0, swagger_1.ApiResponse)({ status: 404, description: 'Company not found' }),
     __param(0, (0, common_1.Param)('alias')),
     __param(1, (0, auth_decorator_1.CurrentUser)()),
@@ -63,7 +69,10 @@ __decorate([
 __decorate([
     (0, common_1.Get)('stats'),
     (0, swagger_1.ApiOperation)({ summary: 'Get dashboard statistics' }),
-    (0, swagger_1.ApiResponse)({ status: 200, description: 'Statistics retrieved successfully' }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: 'Statistics retrieved successfully',
+    }),
     __param(0, (0, auth_decorator_1.CurrentUser)()),
     __param(1, (0, auth_decorator_1.CompanyId)()),
     __metadata("design:type", Function),
@@ -73,12 +82,14 @@ __decorate([
 __decorate([
     (0, common_1.Get)('recent-activity'),
     (0, swagger_1.ApiOperation)({ summary: 'Get recent activity' }),
-    (0, swagger_1.ApiResponse)({ status: 200, description: 'Recent activity retrieved successfully' }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: 'Recent activity retrieved successfully',
+    }),
     __param(0, (0, auth_decorator_1.CurrentUser)()),
-    __param(1, (0, auth_decorator_1.CompanyId)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String]),
-    __metadata("design:returntype", Promise)
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
 ], DashboardController.prototype, "getRecentActivity", null);
 exports.DashboardController = DashboardController = __decorate([
     (0, swagger_1.ApiTags)('Dashboard'),

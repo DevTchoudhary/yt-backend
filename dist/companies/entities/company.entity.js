@@ -57,7 +57,7 @@ __decorate([
             country: { type: String, required: true },
             zipcode: { type: String, required: true },
         },
-        required: true,
+        required: false,
     }),
     __metadata("design:type", Object)
 ], Company.prototype, "businessAddress", void 0);
@@ -81,11 +81,16 @@ __decorate([
     (0, mongoose_1.Prop)({
         type: {
             alertChannels: {
-                type: [{
-                        type: { type: String, enum: ['email', 'slack', 'teams', 'webhook', 'sms'] },
+                type: [
+                    {
+                        type: {
+                            type: String,
+                            enum: ['email', 'slack', 'teams', 'webhook', 'sms'],
+                        },
                         config: { type: Object },
                         enabled: { type: Boolean, default: true },
-                    }],
+                    },
+                ],
                 default: [],
             },
             notificationPreferences: {
@@ -115,7 +120,10 @@ __decorate([
     (0, mongoose_1.Prop)({
         type: {
             industry: { type: String },
-            size: { type: String, enum: ['startup', 'small', 'medium', 'large', 'enterprise'] },
+            size: {
+                type: String,
+                enum: ['startup', 'small', 'medium', 'large', 'enterprise'],
+            },
             website: { type: String },
             description: { type: String },
         },

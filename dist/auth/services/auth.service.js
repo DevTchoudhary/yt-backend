@@ -45,10 +45,11 @@ let AuthService = AuthService_1 = class AuthService {
         if (!this.validationService.isValidBusinessEmail(email)) {
             throw new common_1.BadRequestException('Please use a valid business email address');
         }
-        if (!this.validationService.isValidBusinessEmail(businessEmail)) {
+        if (businessEmail &&
+            !this.validationService.isValidBusinessEmail(businessEmail)) {
             throw new common_1.BadRequestException('Please use a valid business email address for company');
         }
-        if (!this.validationService.isValidPhoneNumber(phone)) {
+        if (phone && !this.validationService.isValidPhoneNumber(phone)) {
             throw new common_1.BadRequestException('Please provide a valid phone number');
         }
         const existingUser = await this.userModel.findOne({ email });
@@ -71,7 +72,7 @@ let AuthService = AuthService_1 = class AuthService {
         const company = new this.companyModel({
             name: companyName,
             alias: finalAlias,
-            businessEmail,
+            businessEmail: businessEmail || email,
             backupEmail,
             businessAddress,
             preferredTimezone: timezone,
@@ -115,7 +116,8 @@ let AuthService = AuthService_1 = class AuthService {
         if (!user) {
             throw new common_1.UnauthorizedException('Invalid credentials');
         }
-        if (user.status === auth_interface_1.UserStatus.INACTIVE || user.status === auth_interface_1.UserStatus.SUSPENDED) {
+        if (user.status === auth_interface_1.UserStatus.INACTIVE ||
+            user.status === auth_interface_1.UserStatus.SUSPENDED) {
             throw new common_1.UnauthorizedException('Account is inactive');
         }
         if (user.security?.lockUntil && user.security.lockUntil > new Date()) {
@@ -134,7 +136,8 @@ let AuthService = AuthService_1 = class AuthService {
         }
         const otp = this.validationService.generateOtp();
         const expiresAt = new Date();
-        expiresAt.setMinutes(expiresAt.getMinutes() + this.configService.get('security.otpExpiresInMinutes'));
+        expiresAt.setMinutes(expiresAt.getMinutes() +
+            (this.configService.get('security.otpExpiresInMinutes') ?? 10));
         user.otp = {
             code: otp,
             expiresAt,
@@ -165,7 +168,8 @@ let AuthService = AuthService_1 = class AuthService {
         if (!user) {
             throw new common_1.BadRequestException('User not found');
         }
-        if (user.status === auth_interface_1.UserStatus.INACTIVE || user.status === auth_interface_1.UserStatus.SUSPENDED) {
+        if (user.status === auth_interface_1.UserStatus.INACTIVE ||
+            user.status === auth_interface_1.UserStatus.SUSPENDED) {
             throw new common_1.UnauthorizedException('Account is inactive');
         }
         if (user.security?.lockUntil && user.security.lockUntil > new Date()) {
@@ -189,7 +193,8 @@ let AuthService = AuthService_1 = class AuthService {
         }
         const otp = this.validationService.generateOtp();
         const expiresAt = new Date();
-        expiresAt.setMinutes(expiresAt.getMinutes() + this.configService.get('security.otpExpiresInMinutes'));
+        expiresAt.setMinutes(expiresAt.getMinutes() +
+            (this.configService.get('security.otpExpiresInMinutes') ?? 10));
         user.otp = {
             code: otp,
             expiresAt,
@@ -255,14 +260,20 @@ let AuthService = AuthService_1 = class AuthService {
             const payload = this.jwtService.verify(refreshToken, {
                 secret: this.configService.get('jwt.refreshSecret'),
             });
-            const user = await this.userModel.findById(payload.sub).populate('companyId');
+            const user = await this.userModel
+                .findById(payload.sub)
+                .populate('companyId');
             if (!user) {
                 throw new common_1.UnauthorizedException('Invalid refresh token');
             }
             const tokens = await this.generateTokens(user);
-            return tokens;
+            return {
+                ...tokens,
+                user: this.sanitizeUser(user),
+                company: this.sanitizeCompany(user.companyId),
+            };
         }
-        catch (error) {
+        catch {
             throw new common_1.UnauthorizedException('Invalid refresh token');
         }
     }
@@ -287,32 +298,30 @@ let AuthService = AuthService_1 = class AuthService {
         return { accessToken, refreshToken };
     }
     sanitizeUser(user) {
-        const { otp, security, ...sanitized } = user.toObject();
+        const { otp, security, ...sanitizedUser } = user.toObject();
         return {
-            ...sanitized,
-            id: sanitized._id,
+            ...sanitizedUser,
+            id: sanitizedUser._id.toHexString(),
+            companyId: sanitizedUser.companyId.toHexString(),
+            company: this.sanitizeCompany(user.companyId) ||
+                undefined,
         };
     }
     sanitizeCompany(company) {
         if (!company)
             return null;
-        const sanitized = company.toObject();
+        const companyObject = company.toObject();
         return {
-            ...sanitized,
-            id: sanitized._id,
+            ...companyObject,
+            id: companyObject._id.toHexString(),
+            dashboardUrl: `/dashboard/${companyObject.alias}`,
         };
     }
     async inviteUser(inviteUserDto, invitedBy) {
         const { email, name, role, permissions, message, phone } = inviteUserDto;
-        const inviteUser = await this.userModel.findOne({ _id: invitedBy._id });
         const expiresAt = new Date();
-        expiresAt.setMinutes(expiresAt.getMinutes() + this.configService.get('security.otpExpiresInMinutes'));
-        if (!inviteUser) {
-            throw new common_1.BadRequestException('User not found');
-        }
-        if (inviteUser) {
-            console.log(inviteUser);
-        }
+        expiresAt.setMinutes(expiresAt.getMinutes() +
+            (this.configService.get('security.otpExpiresInMinutes') ?? 10));
         const existingUser = await this.userModel.findOne({ email });
         if (existingUser) {
             throw new common_1.ConflictException('User with this email already exists');
@@ -337,7 +346,11 @@ let AuthService = AuthService_1 = class AuthService {
         });
         await user.save();
         try {
-            await this.emailService.sendInvitationEmail(email, name, invitedBy.name, invitedBy.companyId.name, invitationToken, message);
+            const company = await this.companyModel.findById(invitedBy.companyId);
+            if (!company) {
+                throw new Error('Inviting user company not found');
+            }
+            await this.emailService.sendInvitationEmail(email, name, invitedBy.name, company.name, invitationToken, message);
         }
         catch (error) {
             await this.userModel.findByIdAndDelete(user._id);
@@ -362,7 +375,7 @@ let AuthService = AuthService_1 = class AuthService {
         const user = await this.userModel.findOne({
             email,
             companyId: invitedBy.companyId,
-            status: auth_interface_1.UserStatus.PENDING
+            status: auth_interface_1.UserStatus.PENDING,
         });
         if (!user) {
             throw new common_1.BadRequestException('Invitation not found or already accepted');
@@ -373,7 +386,11 @@ let AuthService = AuthService_1 = class AuthService {
             await user.save();
         }
         try {
-            await this.emailService.sendInvitationEmail(email, user.name, invitedBy.name, invitedBy.companyId.name, user.invitationToken || '');
+            const company = await this.companyModel.findById(invitedBy.companyId);
+            if (!company) {
+                throw new Error('Inviting user company not found');
+            }
+            await this.emailService.sendInvitationEmail(email, user.name, invitedBy.name, company.name, user.invitationToken || '');
         }
         catch (error) {
             this.logger.error('Failed to resend invitation email', error);
@@ -386,10 +403,12 @@ let AuthService = AuthService_1 = class AuthService {
     }
     async acceptInvitation(acceptInvitationDto) {
         const { token, otp } = acceptInvitationDto;
-        const user = await this.userModel.findOne({
+        const user = await this.userModel
+            .findOne({
             invitationToken: token,
-            status: auth_interface_1.UserStatus.PENDING
-        }).populate('companyId');
+            status: auth_interface_1.UserStatus.PENDING,
+        })
+            .populate('companyId');
         if (!user) {
             throw new common_1.BadRequestException('Invalid or expired invitation token');
         }
@@ -419,15 +438,18 @@ let AuthService = AuthService_1 = class AuthService {
     async updateUser(userId, updateUserDto, updatedBy) {
         const user = await this.userModel.findOne({
             _id: userId,
-            companyId: new mongoose_2.Types.ObjectId(updatedBy.companyId)
+            companyId: new mongoose_2.Types.ObjectId(updatedBy.companyId),
         });
         if (!user) {
             throw new common_1.BadRequestException('User not found');
         }
-        if (updatedBy.role !== auth_interface_1.UserRole.ADMIN && updatedBy.role !== auth_interface_1.UserRole.COMPANY_ADMIN) {
+        if (updatedBy.role !== auth_interface_1.UserRole.ADMIN &&
+            updatedBy.role !== auth_interface_1.UserRole.COMPANY_ADMIN) {
             throw new common_1.ForbiddenException('Insufficient permissions to update user');
         }
-        if (user._id?.toString() === updatedBy._id?.toString() && updateUserDto.role && updatedBy.role !== auth_interface_1.UserRole.ADMIN) {
+        if (user._id?.toString() === updatedBy._id?.toString() &&
+            updateUserDto.role &&
+            updatedBy.role !== auth_interface_1.UserRole.ADMIN) {
             throw new common_1.ForbiddenException('Cannot modify your own role');
         }
         Object.assign(user, updateUserDto);
@@ -447,17 +469,19 @@ let AuthService = AuthService_1 = class AuthService {
         if (!user) {
             throw new common_1.BadRequestException('User not found');
         }
-        if (updatedBy.role !== auth_interface_1.UserRole.ADMIN && updatedBy.role !== auth_interface_1.UserRole.COMPANY_ADMIN) {
+        if (updatedBy.role !== auth_interface_1.UserRole.ADMIN &&
+            updatedBy.role !== auth_interface_1.UserRole.COMPANY_ADMIN) {
             throw new common_1.ForbiddenException('Insufficient permissions to update user status');
         }
-        if (user._id?.toString() === updatedBy._id?.toString() && status !== auth_interface_1.UserStatus.ACTIVE) {
+        if (user._id?.toString() === updatedBy._id?.toString() &&
+            status !== auth_interface_1.UserStatus.ACTIVE) {
             throw new common_1.ForbiddenException('Cannot deactivate your own account');
         }
         user.status = status;
         if (status !== auth_interface_1.UserStatus.ACTIVE) {
-            user.deactivationReason = reason;
             user.deactivatedAt = new Date();
             user.deactivatedBy = updatedBy._id;
+            user.deactivationReason = reason;
         }
         else {
             user.deactivationReason = undefined;
@@ -473,44 +497,40 @@ let AuthService = AuthService_1 = class AuthService {
     }
     async removeUser(userId, removeUserDto, removedBy) {
         const { reason, transferData, transferToUserId } = removeUserDto;
-        try {
-            const user = await this.userModel.findOne({
-                _id: userId,
-                companyId: new mongoose_2.Types.ObjectId(removedBy.companyId)
+        const user = await this.userModel.findOne({
+            _id: userId,
+            companyId: new mongoose_2.Types.ObjectId(removedBy.companyId),
+        });
+        if (!user) {
+            throw new common_1.BadRequestException('User not found');
+        }
+        if (removedBy.role !== auth_interface_1.UserRole.ADMIN &&
+            removedBy.role !== auth_interface_1.UserRole.COMPANY_ADMIN) {
+            throw new common_1.ForbiddenException('Insufficient permissions to remove user');
+        }
+        if (user._id?.toString() === removedBy._id?.toString()) {
+            throw new common_1.ForbiddenException('Cannot remove your own account');
+        }
+        if (transferData && transferToUserId) {
+            const transferToUser = await this.userModel.findOne({
+                _id: transferToUserId,
+                companyId: removedBy.companyId,
             });
-            if (!user) {
-                throw new common_1.BadRequestException('User not found');
+            if (!transferToUser) {
+                throw new common_1.BadRequestException('Transfer target user not found');
             }
-            if (removedBy.role !== auth_interface_1.UserRole.ADMIN && removedBy.role !== auth_interface_1.UserRole.COMPANY_ADMIN) {
-                throw new common_1.ForbiddenException('Insufficient permissions to remove user');
-            }
-            if (user._id?.toString() === removedBy._id?.toString()) {
-                throw new common_1.ForbiddenException('Cannot remove your own account');
-            }
-            if (transferData && transferToUserId) {
-                const transferToUser = await this.userModel.findOne({
-                    _id: transferToUserId,
-                    companyId: removedBy.companyId
-                });
-                if (!transferToUser) {
-                    throw new common_1.BadRequestException('Transfer target user not found');
-                }
-                this.logger.log(`Data transfer from ${user.email} to ${transferToUser.email} initiated`);
-            }
-            user.status = auth_interface_1.UserStatus.INACTIVE;
-            user.deactivationReason = reason || 'User removed from company';
-            user.deactivatedAt = new Date();
-            user.deactivatedBy = removedBy._id;
-            await user.save();
-            this.logger.log(`User ${user.email} removed by ${removedBy.email}`);
-            return {
-                message: 'User removed successfully',
-                transferInitiated: transferData && transferToUserId,
-            };
+            this.logger.log(`Data transfer from ${user.email} to ${transferToUser.email} initiated`);
         }
-        catch (error) {
-            console.error('Error removing user:', error);
-        }
+        user.status = auth_interface_1.UserStatus.INACTIVE;
+        user.deactivatedAt = new Date();
+        user.deactivatedBy = removedBy._id;
+        user.deactivationReason = reason;
+        await user.save();
+        this.logger.log(`User ${user.email} removed by ${removedBy.email}`);
+        return {
+            message: 'User removed successfully',
+            transferInitiated: !!(transferData && transferToUserId),
+        };
     }
     async changeEmail(userId, changeEmailDto) {
         const { newEmail, otp } = changeEmailDto;
@@ -544,23 +564,18 @@ let AuthService = AuthService_1 = class AuthService {
     }
     async getCompanyUsers(companyId, page = 1, limit = 10, status) {
         const skip = (page - 1) * limit;
-        const filter = { companyId };
+        const filter = {
+            companyId: new mongoose_2.Types.ObjectId(companyId),
+        };
         if (status) {
             filter.status = status;
         }
         const [users, total] = await Promise.all([
-            this.userModel
-                .find(filter)
-                .populate('invitedBy', 'name email')
-                .populate('deactivatedBy', 'name email')
-                .sort({ createdAt: -1 })
-                .skip(skip)
-                .limit(limit)
-                .exec(),
+            this.userModel.find(filter).skip(skip).limit(limit).exec(),
             this.userModel.countDocuments(filter),
         ]);
         return {
-            users: users.map(user => this.sanitizeUser(user)),
+            data: users.map((user) => this.sanitizeUser(user)),
             pagination: {
                 page,
                 limit,

@@ -37,7 +37,7 @@ __decorate([
 __decorate([
     (0, swagger_1.ApiPropertyOptional)({
         type: [String],
-        example: ['read:projects', 'write:incidents']
+        example: ['read:projects', 'write:incidents'],
     }),
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsArray)(),
@@ -127,7 +127,7 @@ __decorate([
 __decorate([
     (0, swagger_1.ApiPropertyOptional)({
         type: [String],
-        example: ['read:projects', 'write:incidents']
+        example: ['read:projects', 'write:incidents'],
     }),
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsArray)(),
@@ -149,7 +149,7 @@ __decorate([
 __decorate([
     (0, swagger_1.ApiProperty)({
         enum: ['activate', 'deactivate', 'suspend', 'delete'],
-        example: 'activate'
+        example: 'activate',
     }),
     (0, class_validator_1.IsEnum)(['activate', 'deactivate', 'suspend', 'delete']),
     __metadata("design:type", String)

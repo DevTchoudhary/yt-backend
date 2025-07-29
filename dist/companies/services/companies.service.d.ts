@@ -17,7 +17,7 @@ export declare class CompaniesService {
     findOne(id: string): Promise<Company>;
     findByAlias(alias: string): Promise<Company>;
     update(id: string, updateCompanyDto: UpdateCompanyDto, userRole: UserRole): Promise<Company>;
-    approve(companyId: string, approvedBy: string, notes?: string): Promise<Company>;
+    approve(companyId: string, approvedBy: string): Promise<Company>;
     reject(companyId: string, reason: string, rejectedBy: string): Promise<Company>;
     getCompanyStats(): Promise<{
         total: number;

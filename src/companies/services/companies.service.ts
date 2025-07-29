@@ -31,14 +31,21 @@ export class CompaniesService {
   ) {}
 
   async findAll(query: CompanyQueryDto): Promise<PaginatedResponse<Company>> {
-    const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc', status, search } = query;
-    
-    const filter: any = {};
-    
+    const {
+      page = 1,
+      limit = 10,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+      status,
+      search,
+    } = query;
+
+    const filter: Record<string, unknown> = {};
+
     if (status) {
       filter.status = status;
     }
-    
+
     if (search) {
       filter.$or = [
         { name: { $regex: search, $options: 'i' } },
@@ -48,7 +55,9 @@ export class CompaniesService {
     }
 
     const skip = (page - 1) * limit;
-    const sortOptions: Record<string, 1 | -1> = { [sortBy]: sortOrder === 'asc' ? 1 : -1 };
+    const sortOptions: Record<string, 1 | -1> = {
+      [sortBy]: sortOrder === 'asc' ? 1 : -1,
+    };
 
     const [companies, total] = await Promise.all([
       this.companyModel
@@ -91,9 +100,13 @@ export class CompaniesService {
     return company;
   }
 
-  async update(id: string, updateCompanyDto: UpdateCompanyDto, userRole: UserRole): Promise<Company> {
+  async update(
+    id: string,
+    updateCompanyDto: UpdateCompanyDto,
+    userRole: UserRole,
+  ): Promise<Company> {
     const company = await this.companyModel.findById(id);
-    
+
     if (!company) {
       throw new NotFoundException('Company not found');
     }
@@ -107,13 +120,13 @@ export class CompaniesService {
     return company.save();
   }
 
-  async approve(companyId: string, approvedBy: string, notes?: string): Promise<Company> {
+  async approve(companyId: string, approvedBy: string): Promise<Company> {
     const company = await this.companyModel.findById(companyId);
-    
+
     if (!company) {
       throw new NotFoundException('Company not found');
     }
-    
+
     if (company.status !== CompanyStatus.PENDING) {
       throw new BadRequestException('Company is not pending approval');
     }
@@ -121,13 +134,13 @@ export class CompaniesService {
     company.status = CompanyStatus.APPROVED;
     company.approvedAt = new Date();
     company.approvedBy = approvedBy;
-    
+
     await company.save();
 
     // Update all users in this company to active status
     await this.userModel.updateMany(
       { companyId: company._id?.toString(), status: UserStatus.PENDING },
-      { status: UserStatus.ACTIVE }
+      { status: UserStatus.ACTIVE },
     );
 
     // Send approval email to company admin
@@ -154,29 +167,35 @@ export class CompaniesService {
     return company;
   }
 
-  async reject(companyId: string, reason: string, rejectedBy: string): Promise<Company> {
+  async reject(
+    companyId: string,
+    reason: string,
+    rejectedBy: string,
+  ): Promise<Company> {
     const company = await this.companyModel.findById(companyId);
-    
+
     if (!company) {
       throw new NotFoundException('Company not found');
     }
-    
+
     if (company.status !== CompanyStatus.PENDING) {
       throw new BadRequestException('Company is not pending approval');
     }
 
     company.status = CompanyStatus.REJECTED;
     company.rejectionReason = reason;
-    
+
     await company.save();
 
     // Update all users in this company to inactive status
     await this.userModel.updateMany(
       { companyId: company._id?.toString() },
-      { status: UserStatus.INACTIVE }
+      { status: UserStatus.INACTIVE },
     );
 
-    this.logger.log(`Company rejected: ${company.name} by ${rejectedBy}. Reason: ${reason}`);
+    this.logger.log(
+      `Company rejected: ${company.name} by ${rejectedBy}. Reason: ${reason}`,
+    );
     return company;
   }
 
@@ -199,10 +218,19 @@ export class CompaniesService {
       inactive: 0,
     };
 
-    stats.forEach((stat) => {
-      result.total += stat.count;
-      result[stat._id] = stat.count;
-    });
+    for (const stat of stats) {
+      if (
+        stat &&
+        typeof stat === 'object' &&
+        '_id' in stat &&
+        'count' in stat
+      ) {
+        const id = String((stat as { _id: unknown })._id);
+        const count = Number((stat as { count: unknown }).count);
+        result.total += count;
+        result[id] = count;
+      }
+    }
 
     return result;
   }

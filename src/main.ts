@@ -4,7 +4,8 @@ import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import helmet from 'helmet';
-import * as compression from 'compression';
+import compression from 'compression';
+import * as cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -16,7 +17,10 @@ async function bootstrap() {
 
   // Security middleware
   app.use(helmet());
-  app.use(compression());
+  if (typeof compression === 'function') {
+    app.use(compression());
+  }
+  app.use(cookieParser());
 
   // CORS configuration
   app.enableCors({
@@ -45,7 +49,9 @@ async function bootstrap() {
   if (configService.get('nodeEnv') !== 'production') {
     const config = new DocumentBuilder()
       .setTitle('Yukti SRE Platform API')
-      .setDescription('Comprehensive SRE platform for infrastructure management')
+      .setDescription(
+        'Comprehensive SRE platform for infrastructure management',
+      )
       .setVersion('1.0')
       .addBearerAuth()
       .addTag('Authentication', 'User authentication and authorization')
@@ -63,17 +69,20 @@ async function bootstrap() {
     logger.log('Swagger documentation available at /api/docs');
   }
 
-  const port = configService.get('port') || 3000;
-  const host = '0.0.0.0'; // Allow access from any host
+  const port = Number(configService.get('port')) || 3000;
+  const host = String('0.0.0.0'); // Allow access from any host
 
   await app.listen(port, host);
-  
+
   logger.log(`🚀 Application is running on: http://${host}:${port}`);
   logger.log(`📚 API Documentation: http://${host}:${port}/api/docs`);
   logger.log(`🌍 Environment: ${configService.get('nodeEnv')}`);
 }
 
-bootstrap().catch((error) => {
-  console.error('Failed to start application:', error);
-  process.exit(1);
+bootstrap().catch((error: unknown) => {
+  if (error instanceof Error) {
+    console.error('Failed to start application:', error.message);
+  } else {
+    console.error('Failed to start application:', error);
+  }
 });

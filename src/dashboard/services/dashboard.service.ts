@@ -1,9 +1,20 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Company, CompanyDocument } from '../../companies/entities/company.entity';
+import {
+  Company,
+  CompanyDocument,
+} from '../../companies/entities/company.entity';
 import { User, UserDocument } from '../../users/entities/user.entity';
-import { RequestUser, UserRole, CompanyStatus } from '../../common/interfaces/auth.interface';
+import {
+  RequestUser,
+  UserRole,
+  CompanyStatus,
+} from '../../common/interfaces/auth.interface';
 
 @Injectable()
 export class DashboardService {
@@ -53,7 +64,10 @@ export class DashboardService {
     }
 
     // Check if user has access to this company
-    if (user.companyId !== company._id?.toString() && user.role !== UserRole.ADMIN) {
+    if (
+      user.companyId !== company._id?.toString() &&
+      user.role !== UserRole.ADMIN
+    ) {
       throw new ForbiddenException('Access denied to this company dashboard');
     }
 
@@ -75,8 +89,14 @@ export class DashboardService {
       },
       users: {
         total: await this.userModel.countDocuments({ companyId }),
-        active: await this.userModel.countDocuments({ companyId, status: 'active' }),
-        pending: await this.userModel.countDocuments({ companyId, status: 'pending' }),
+        active: await this.userModel.countDocuments({
+          companyId,
+          status: 'active',
+        }),
+        pending: await this.userModel.countDocuments({
+          companyId,
+          status: 'pending',
+        }),
       },
       projects: {
         total: 0, // Will be implemented when projects module is added
@@ -93,7 +113,7 @@ export class DashboardService {
     return stats;
   }
 
-  async getRecentActivity(user: RequestUser, companyId: string) {
+  getRecentActivity(user: RequestUser) {
     // This is a placeholder for recent activity
     // In a real application, you would fetch from an activity log
     const activities = [
@@ -118,22 +138,42 @@ export class DashboardService {
 
   private getAvailableFeatures(role: UserRole, companyStatus: CompanyStatus) {
     const baseFeatures = ['dashboard', 'profile'];
-    
+
     if (companyStatus === CompanyStatus.PENDING) {
       return [...baseFeatures, 'limited_view'];
     }
 
-    if (companyStatus !== CompanyStatus.APPROVED && companyStatus !== CompanyStatus.ACTIVE) {
+    if (
+      companyStatus !== CompanyStatus.APPROVED &&
+      companyStatus !== CompanyStatus.ACTIVE
+    ) {
       return baseFeatures;
     }
 
     switch (role) {
       case UserRole.CLIENT:
-        return [...baseFeatures, 'projects', 'incidents', 'reports', 'settings'];
+        return [
+          ...baseFeatures,
+          'projects',
+          'incidents',
+          'reports',
+          'settings',
+        ];
       case UserRole.SRE:
-        return [...baseFeatures, 'projects', 'incidents', 'monitoring', 'deployments'];
+        return [
+          ...baseFeatures,
+          'projects',
+          'incidents',
+          'monitoring',
+          'deployments',
+        ];
       case UserRole.ADMIN:
-        return [...baseFeatures, 'user_management', 'company_management', 'system_settings'];
+        return [
+          ...baseFeatures,
+          'user_management',
+          'company_management',
+          'system_settings',
+        ];
       default:
         return baseFeatures;
     }
@@ -142,12 +182,19 @@ export class DashboardService {
   private getQuickActions(role: UserRole, companyStatus: CompanyStatus) {
     if (companyStatus === CompanyStatus.PENDING) {
       return [
-        { label: 'View Application Status', action: 'view_status', icon: 'clock' },
+        {
+          label: 'View Application Status',
+          action: 'view_status',
+          icon: 'clock',
+        },
         { label: 'Contact Support', action: 'contact_support', icon: 'help' },
       ];
     }
 
-    if (companyStatus !== CompanyStatus.APPROVED && companyStatus !== CompanyStatus.ACTIVE) {
+    if (
+      companyStatus !== CompanyStatus.APPROVED &&
+      companyStatus !== CompanyStatus.ACTIVE
+    ) {
       return [
         { label: 'Contact Support', action: 'contact_support', icon: 'help' },
       ];
@@ -162,39 +209,71 @@ export class DashboardService {
       case UserRole.CLIENT:
         return [
           ...baseActions,
-          { label: 'Create Incident', action: 'create_incident', icon: 'alert' },
+          {
+            label: 'Create Incident',
+            action: 'create_incident',
+            icon: 'alert',
+          },
           { label: 'View Reports', action: 'view_reports', icon: 'chart' },
         ];
       case UserRole.SRE:
         return [
           ...baseActions,
-          { label: 'Monitor Systems', action: 'monitor_systems', icon: 'monitor' },
+          {
+            label: 'Monitor Systems',
+            action: 'monitor_systems',
+            icon: 'monitor',
+          },
           { label: 'Deploy Application', action: 'deploy_app', icon: 'deploy' },
         ];
       case UserRole.ADMIN:
         return [
           ...baseActions,
           { label: 'Manage Users', action: 'manage_users', icon: 'users' },
-          { label: 'Approve Companies', action: 'approve_companies', icon: 'check' },
+          {
+            label: 'Approve Companies',
+            action: 'approve_companies',
+            icon: 'check',
+          },
         ];
       default:
         return baseActions;
     }
   }
 
-  private async getNotifications(user: RequestUser, companyId: string) {
+  private async getNotifications(
+    user: RequestUser,
+    companyId: string,
+  ): Promise<
+    Array<{
+      id: string;
+      type: string;
+      title: string;
+      message: string;
+      timestamp: Date;
+      read: boolean;
+    }>
+  > {
     // This is a placeholder for notifications
     // In a real application, you would fetch from a notifications collection
-    const notifications: any[] = [];
+    const notifications: Array<{
+      id: string;
+      type: string;
+      title: string;
+      message: string;
+      timestamp: Date;
+      read: boolean;
+    }> = [];
 
     const company = await this.companyModel.findById(companyId);
-    
+
     if (company?.status === CompanyStatus.PENDING) {
       notifications.push({
         id: '1',
         type: 'info',
         title: 'Account Under Review',
-        message: 'Your company account is currently under review. You\'ll be notified once approved.',
+        message:
+          "Your company account is currently under review. You'll be notified once approved.",
         timestamp: new Date(),
         read: false,
       });

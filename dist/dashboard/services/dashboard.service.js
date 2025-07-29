@@ -60,7 +60,8 @@ let DashboardService = class DashboardService {
         if (!company) {
             throw new common_1.NotFoundException('Company not found');
         }
-        if (user.companyId !== company._id?.toString() && user.role !== auth_interface_1.UserRole.ADMIN) {
+        if (user.companyId !== company._id?.toString() &&
+            user.role !== auth_interface_1.UserRole.ADMIN) {
             throw new common_1.ForbiddenException('Access denied to this company dashboard');
         }
         return this.getDashboardData(user, company._id?.toString() || '');
@@ -79,8 +80,14 @@ let DashboardService = class DashboardService {
             },
             users: {
                 total: await this.userModel.countDocuments({ companyId }),
-                active: await this.userModel.countDocuments({ companyId, status: 'active' }),
-                pending: await this.userModel.countDocuments({ companyId, status: 'pending' }),
+                active: await this.userModel.countDocuments({
+                    companyId,
+                    status: 'active',
+                }),
+                pending: await this.userModel.countDocuments({
+                    companyId,
+                    status: 'pending',
+                }),
             },
             projects: {
                 total: 0,
@@ -95,7 +102,7 @@ let DashboardService = class DashboardService {
         };
         return stats;
     }
-    async getRecentActivity(user, companyId) {
+    getRecentActivity(user) {
         const activities = [
             {
                 id: '1',
@@ -119,16 +126,34 @@ let DashboardService = class DashboardService {
         if (companyStatus === auth_interface_1.CompanyStatus.PENDING) {
             return [...baseFeatures, 'limited_view'];
         }
-        if (companyStatus !== auth_interface_1.CompanyStatus.APPROVED && companyStatus !== auth_interface_1.CompanyStatus.ACTIVE) {
+        if (companyStatus !== auth_interface_1.CompanyStatus.APPROVED &&
+            companyStatus !== auth_interface_1.CompanyStatus.ACTIVE) {
             return baseFeatures;
         }
         switch (role) {
             case auth_interface_1.UserRole.CLIENT:
-                return [...baseFeatures, 'projects', 'incidents', 'reports', 'settings'];
+                return [
+                    ...baseFeatures,
+                    'projects',
+                    'incidents',
+                    'reports',
+                    'settings',
+                ];
             case auth_interface_1.UserRole.SRE:
-                return [...baseFeatures, 'projects', 'incidents', 'monitoring', 'deployments'];
+                return [
+                    ...baseFeatures,
+                    'projects',
+                    'incidents',
+                    'monitoring',
+                    'deployments',
+                ];
             case auth_interface_1.UserRole.ADMIN:
-                return [...baseFeatures, 'user_management', 'company_management', 'system_settings'];
+                return [
+                    ...baseFeatures,
+                    'user_management',
+                    'company_management',
+                    'system_settings',
+                ];
             default:
                 return baseFeatures;
         }
@@ -136,11 +161,16 @@ let DashboardService = class DashboardService {
     getQuickActions(role, companyStatus) {
         if (companyStatus === auth_interface_1.CompanyStatus.PENDING) {
             return [
-                { label: 'View Application Status', action: 'view_status', icon: 'clock' },
+                {
+                    label: 'View Application Status',
+                    action: 'view_status',
+                    icon: 'clock',
+                },
                 { label: 'Contact Support', action: 'contact_support', icon: 'help' },
             ];
         }
-        if (companyStatus !== auth_interface_1.CompanyStatus.APPROVED && companyStatus !== auth_interface_1.CompanyStatus.ACTIVE) {
+        if (companyStatus !== auth_interface_1.CompanyStatus.APPROVED &&
+            companyStatus !== auth_interface_1.CompanyStatus.ACTIVE) {
             return [
                 { label: 'Contact Support', action: 'contact_support', icon: 'help' },
             ];
@@ -153,20 +183,32 @@ let DashboardService = class DashboardService {
             case auth_interface_1.UserRole.CLIENT:
                 return [
                     ...baseActions,
-                    { label: 'Create Incident', action: 'create_incident', icon: 'alert' },
+                    {
+                        label: 'Create Incident',
+                        action: 'create_incident',
+                        icon: 'alert',
+                    },
                     { label: 'View Reports', action: 'view_reports', icon: 'chart' },
                 ];
             case auth_interface_1.UserRole.SRE:
                 return [
                     ...baseActions,
-                    { label: 'Monitor Systems', action: 'monitor_systems', icon: 'monitor' },
+                    {
+                        label: 'Monitor Systems',
+                        action: 'monitor_systems',
+                        icon: 'monitor',
+                    },
                     { label: 'Deploy Application', action: 'deploy_app', icon: 'deploy' },
                 ];
             case auth_interface_1.UserRole.ADMIN:
                 return [
                     ...baseActions,
                     { label: 'Manage Users', action: 'manage_users', icon: 'users' },
-                    { label: 'Approve Companies', action: 'approve_companies', icon: 'check' },
+                    {
+                        label: 'Approve Companies',
+                        action: 'approve_companies',
+                        icon: 'check',
+                    },
                 ];
             default:
                 return baseActions;
@@ -180,7 +222,7 @@ let DashboardService = class DashboardService {
                 id: '1',
                 type: 'info',
                 title: 'Account Under Review',
-                message: 'Your company account is currently under review. You\'ll be notified once approved.',
+                message: "Your company account is currently under review. You'll be notified once approved.",
                 timestamp: new Date(),
                 read: false,
             });

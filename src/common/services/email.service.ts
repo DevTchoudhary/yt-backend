@@ -20,9 +20,17 @@ export class EmailService {
   }
 
   async sendOtpEmail(email: string, otp: string, name?: string): Promise<void> {
+    // In development mode, just log the OTP instead of sending email
+    if (this.configService.get('NODE_ENV') === 'development') {
+      this.logger.log(
+        `🔐 OTP for ${email}: ${otp} (Development Mode - Not Sent via Email)`,
+      );
+      return;
+    }
+
     try {
       const mailOptions = {
-        from: this.configService.get('SMTP_FROM'),
+        from: String(this.configService.get('SMTP_FROM')),
         to: email,
         subject: 'Your OTP for Yukti Platform',
         html: this.getOtpEmailTemplate(otp, name),
@@ -30,16 +38,23 @@ export class EmailService {
 
       await this.transporter.sendMail(mailOptions);
       this.logger.log(`OTP email sent to ${email}`);
-    } catch (error) {
-      this.logger.error(`Failed to send OTP email to ${email}`, error);
-      throw error;
+    } catch (error: unknown) {
+      this.logger.error(
+        `Failed to send OTP email to ${email}`,
+        error instanceof Error ? error.message : error,
+      );
+      throw new Error('Failed to send OTP email');
     }
   }
 
-  async sendWelcomeEmail(email: string, name: string, companyName: string): Promise<void> {
+  async sendWelcomeEmail(
+    email: string,
+    name: string,
+    companyName: string,
+  ): Promise<void> {
     try {
       const mailOptions = {
-        from: this.configService.get('SMTP_FROM'),
+        from: String(this.configService.get('SMTP_FROM')),
         to: email,
         subject: 'Welcome to Yukti Platform',
         html: this.getWelcomeEmailTemplate(name, companyName),
@@ -47,16 +62,24 @@ export class EmailService {
 
       await this.transporter.sendMail(mailOptions);
       this.logger.log(`Welcome email sent to ${email}`);
-    } catch (error) {
-      this.logger.error(`Failed to send welcome email to ${email}`, error);
-      throw error;
+    } catch (error: unknown) {
+      this.logger.error(
+        `Failed to send welcome email to ${email}`,
+        error instanceof Error ? error.message : error,
+      );
+      throw new Error('Failed to send welcome email');
     }
   }
 
-  async sendCompanyApprovalEmail(email: string, name: string, companyName: string, dashboardUrl: string): Promise<void> {
+  async sendCompanyApprovalEmail(
+    email: string,
+    name: string,
+    companyName: string,
+    dashboardUrl: string,
+  ): Promise<void> {
     try {
       const mailOptions = {
-        from: this.configService.get('SMTP_FROM'),
+        from: String(this.configService.get('SMTP_FROM')),
         to: email,
         subject: 'Company Approved - Access Your Dashboard',
         html: this.getApprovalEmailTemplate(name, companyName, dashboardUrl),
@@ -64,9 +87,12 @@ export class EmailService {
 
       await this.transporter.sendMail(mailOptions);
       this.logger.log(`Approval email sent to ${email}`);
-    } catch (error) {
-      this.logger.error(`Failed to send approval email to ${email}`, error);
-      throw error;
+    } catch (error: unknown) {
+      this.logger.error(
+        `Failed to send approval email to ${email}`,
+        error instanceof Error ? error.message : error,
+      );
+      throw new Error('Failed to send approval email');
     }
   }
 
@@ -77,32 +103,46 @@ export class EmailService {
     companyName: string,
     invitationToken: string,
     message?: string,
-    otp?: string
+    otp?: string,
   ): Promise<void> {
     try {
       const invitationUrl = `${this.configService.get('FRONTEND_URL', 'http://localhost:3000')}/accept-invitation?token=${invitationToken}`;
-      
+
       const mailOptions = {
-        from: this.configService.get('SMTP_FROM'),
+        from: String(this.configService.get('SMTP_FROM')),
         to: email,
         subject: `Invitation to join ${companyName} on Yukti Platform`,
-        html: this.getInvitationEmailTemplate(name, inviterName, companyName, invitationUrl, message,otp),
+        html: this.getInvitationEmailTemplate(
+          name,
+          inviterName,
+          companyName,
+          invitationUrl,
+          message,
+          otp,
+        ),
       };
 
       await this.transporter.sendMail(mailOptions);
       this.logger.log(`Invitation email sent to ${email}`);
-    } catch (error) {
-      this.logger.error(`Failed to send invitation email to ${email}`, error);
-      throw error;
+    } catch (error: unknown) {
+      this.logger.error(
+        `Failed to send invitation email to ${email}`,
+        error instanceof Error ? error.message : error,
+      );
+      throw new Error('Failed to send invitation email');
     }
   }
 
-  async sendPasswordResetEmail(email: string, name: string, resetToken: string): Promise<void> {
+  async sendPasswordResetEmail(
+    email: string,
+    name: string,
+    resetToken: string,
+  ): Promise<void> {
     try {
       const resetUrl = `${this.configService.get('FRONTEND_URL', 'http://localhost:3000')}/reset-password?token=${resetToken}`;
-      
+
       const mailOptions = {
-        from: this.configService.get('SMTP_FROM'),
+        from: String(this.configService.get('SMTP_FROM')),
         to: email,
         subject: 'Password Reset Request - Yukti Platform',
         html: this.getPasswordResetEmailTemplate(name, resetUrl),
@@ -110,26 +150,42 @@ export class EmailService {
 
       await this.transporter.sendMail(mailOptions);
       this.logger.log(`Password reset email sent to ${email}`);
-    } catch (error) {
-      this.logger.error(`Failed to send password reset email to ${email}`, error);
-      throw error;
+    } catch (error: unknown) {
+      this.logger.error(
+        `Failed to send password reset email to ${email}`,
+        error instanceof Error ? error.message : error,
+      );
+      throw new Error('Failed to send password reset email');
     }
   }
 
-  async sendEmailChangeConfirmation(email: string, name: string, newEmail: string, otp: string): Promise<void> {
+  async sendEmailChangeConfirmation(
+    email: string,
+    name: string,
+    newEmail: string,
+    otp: string,
+  ): Promise<void> {
     try {
       const mailOptions = {
-        from: this.configService.get('SMTP_FROM'),
+        from: String(this.configService.get('SMTP_FROM')),
         to: newEmail,
         subject: 'Confirm Email Change - Yukti Platform',
-        html: this.getEmailChangeConfirmationTemplate(name, email, newEmail, otp),
+        html: this.getEmailChangeConfirmationTemplate(
+          name,
+          email,
+          newEmail,
+          otp,
+        ),
       };
 
       await this.transporter.sendMail(mailOptions);
       this.logger.log(`Email change confirmation sent to ${newEmail}`);
-    } catch (error) {
-      this.logger.error(`Failed to send email change confirmation to ${newEmail}`, error);
-      throw error;
+    } catch (error: unknown) {
+      this.logger.error(
+        `Failed to send email change confirmation to ${newEmail}`,
+        error instanceof Error ? error.message : error,
+      );
+      throw new Error('Failed to send email change confirmation');
     }
   }
 
@@ -162,7 +218,11 @@ export class EmailService {
     `;
   }
 
-  private getApprovalEmailTemplate(name: string, companyName: string, dashboardUrl: string): string {
+  private getApprovalEmailTemplate(
+    name: string,
+    companyName: string,
+    dashboardUrl: string,
+  ): string {
     return `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2>Company Approved!</h2>
@@ -179,14 +239,14 @@ export class EmailService {
   }
 
   private getInvitationEmailTemplate(
-  name: string,
-  inviterName: string,
-  companyName: string,
-  invitationUrl: string,
-  message?: string,
-  otp?: string // ✅ Add this line
-): string {
-  return `
+    name: string,
+    inviterName: string,
+    companyName: string,
+    invitationUrl: string,
+    message?: string,
+    otp?: string, // ✅ Add this line
+  ): string {
+    return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2>You're Invited to Join ${companyName}!</h2>
       <p>Hello ${name},</p>
@@ -201,10 +261,12 @@ export class EmailService {
       ${otp ? `<p><strong>Your OTP is: ${otp}</strong></p>` : ''}
     </div>
   `;
-}
+  }
 
-
-  private getPasswordResetEmailTemplate(name: string, resetUrl: string): string {
+  private getPasswordResetEmailTemplate(
+    name: string,
+    resetUrl: string,
+  ): string {
     return `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2>Password Reset Request</h2>
@@ -220,7 +282,12 @@ export class EmailService {
     `;
   }
 
-  private getEmailChangeConfirmationTemplate(name: string, oldEmail: string, newEmail: string, otp: string): string {
+  private getEmailChangeConfirmationTemplate(
+    name: string,
+    oldEmail: string,
+    newEmail: string,
+    otp: string,
+  ): string {
     return `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2>Confirm Email Change</h2>

@@ -74,7 +74,10 @@ __decorate([
     (0, auth_decorator_1.Roles)(auth_interface_1.UserRole.ADMIN),
     (0, auth_decorator_1.Permissions)(auth_interface_1.Permission.ADMIN_COMPANIES),
     (0, swagger_1.ApiOperation)({ summary: 'Get company statistics' }),
-    (0, swagger_1.ApiResponse)({ status: 200, description: 'Statistics retrieved successfully' }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: 'Statistics retrieved successfully',
+    }),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
@@ -156,7 +159,10 @@ __decorate([
     (0, common_1.Get)(':id/dashboard-url'),
     (0, auth_decorator_1.Permissions)(auth_interface_1.Permission.COMPANY_READ),
     (0, swagger_1.ApiOperation)({ summary: 'Get company dashboard URL' }),
-    (0, swagger_1.ApiResponse)({ status: 200, description: 'Dashboard URL retrieved successfully' }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: 'Dashboard URL retrieved successfully',
+    }),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),

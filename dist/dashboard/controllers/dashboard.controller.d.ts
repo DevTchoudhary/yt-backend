@@ -24,7 +24,14 @@ export declare class DashboardController {
             action: string;
             icon: string;
         }[];
-        notifications: any[];
+        notifications: {
+            id: string;
+            type: string;
+            title: string;
+            message: string;
+            timestamp: Date;
+            read: boolean;
+        }[];
     }>;
     getCompanyDashboard(alias: string, user: RequestUser): Promise<{
         company: {
@@ -47,7 +54,14 @@ export declare class DashboardController {
             action: string;
             icon: string;
         }[];
-        notifications: any[];
+        notifications: {
+            id: string;
+            type: string;
+            title: string;
+            message: string;
+            timestamp: Date;
+            read: boolean;
+        }[];
     }>;
     getStats(user: RequestUser, companyId: string): Promise<{
         company: {
@@ -72,11 +86,11 @@ export declare class DashboardController {
             total: number;
         };
     }>;
-    getRecentActivity(user: RequestUser, companyId: string): Promise<{
+    getRecentActivity(user: RequestUser): {
         id: string;
         type: string;
         description: string;
         timestamp: Date;
         user: string;
-    }[]>;
+    }[];
 }

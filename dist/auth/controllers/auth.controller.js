@@ -24,6 +24,7 @@ const user_management_dto_1 = require("../dto/user-management.dto");
 const auth_response_dto_1 = require("../dto/auth-response.dto");
 const auth_decorator_1 = require("../../common/decorators/auth.decorator");
 const jwt_auth_guard_1 = require("../../common/guards/jwt-auth.guard");
+const auth_interface_1 = require("../../common/interfaces/auth.interface");
 let AuthController = class AuthController {
     authService;
     constructor(authService) {
@@ -42,21 +43,23 @@ let AuthController = class AuthController {
         return this.authService.refreshToken(refreshTokenDto.refreshToken);
     }
     async getProfile(user) {
-        return {
-            userId: user.userId,
-            email: user.email,
-            role: user.role,
-            companyId: user.companyId,
-            permissions: user.permissions,
-        };
+        const fullUser = await this.authService.getUserById(user.userId);
+        if (!fullUser) {
+            throw new Error('User not found');
+        }
+        const sanitizedUser = this.authService.sanitizeUser(fullUser);
+        if (!sanitizedUser) {
+            throw new Error('Failed to process user data');
+        }
+        return sanitizedUser;
     }
-    async logout(user) {
+    logout() {
         return {
             message: 'Logged out successfully',
         };
     }
     async resendOtp(resendOtpDto, req) {
-        const ip = req.ip || req.connection.remoteAddress;
+        const ip = req.ip || req.socket.remoteAddress || 'unknown';
         return this.authService.resendOtp(resendOtpDto, ip);
     }
     async inviteUser(inviteUserDto, user) {
@@ -69,21 +72,25 @@ let AuthController = class AuthController {
         for (const invitation of bulkInviteDto.invitations) {
             try {
                 const result = await this.authService.inviteUser(invitation, currentUser);
-                results.push({ email: invitation.email, success: true, result });
+                results.push({
+                    email: invitation.email,
+                    success: true,
+                    user: result.invitedUser,
+                });
             }
             catch (error) {
                 results.push({
                     email: invitation.email,
                     success: false,
-                    error: error.message
+                    error: error instanceof Error ? error.message : String(error),
                 });
             }
         }
         return {
             message: 'Bulk invitation completed',
             results,
-            successful: results.filter(r => r.success).length,
-            failed: results.filter(r => !r.success).length,
+            successful: results.filter((r) => r.success).length,
+            failed: results.filter((r) => !r.success).length,
         };
     }
     async resendInvitation(resendInvitationDto, user) {
@@ -121,29 +128,52 @@ let AuthController = class AuthController {
                 let result;
                 switch (action) {
                     case 'activate':
-                        result = await this.authService.updateUserStatus(userId, { status: 'active' }, currentUser);
+                        result = (await this.authService.updateUserStatus(userId, { status: auth_interface_1.UserStatus.ACTIVE }, currentUser))?.user;
                         break;
                     case 'deactivate':
-                        result = await this.authService.updateUserStatus(userId, { status: 'inactive', reason }, currentUser);
+                        result = (await this.authService.updateUserStatus(userId, { status: auth_interface_1.UserStatus.INACTIVE, reason }, currentUser))?.user;
                         break;
                     case 'suspend':
-                        result = await this.authService.updateUserStatus(userId, { status: 'suspended', reason }, currentUser);
+                        result = (await this.authService.updateUserStatus(userId, { status: auth_interface_1.UserStatus.SUSPENDED, reason }, currentUser))?.user;
                         break;
                     case 'delete':
-                        result = await this.authService.removeUser(userId, { userId, reason }, currentUser);
+                        await this.authService.removeUser(userId, { userId, reason }, currentUser);
+                        result = {
+                            id: userId,
+                            message: 'User removal process initiated',
+                        };
                         break;
+                    default:
+                        throw new Error(`Invalid action: ${action}`);
                 }
-                results.push({ userId, success: true, result });
+                if (result) {
+                    results.push({
+                        userId,
+                        success: true,
+                        user: result,
+                    });
+                }
+                else {
+                    results.push({
+                        userId,
+                        success: false,
+                        error: 'Action failed or returned no result',
+                    });
+                }
             }
             catch (error) {
-                results.push({ userId, success: false, error: error.message });
+                results.push({
+                    userId,
+                    success: false,
+                    error: error instanceof Error ? error.message : String(error),
+                });
             }
         }
         return {
             message: 'Bulk action completed',
             results,
-            successful: results.filter(r => r.success).length,
-            failed: results.filter(r => !r.success).length,
+            successful: results.filter((r) => r.success).length,
+            failed: results.filter((r) => !r.success).length,
         };
     }
     async changeEmail(changeEmailDto, user) {
@@ -241,10 +271,9 @@ __decorate([
     (0, common_1.HttpCode)(common_1.HttpStatus.OK),
     (0, swagger_1.ApiOperation)({ summary: 'Logout user' }),
     (0, swagger_1.ApiResponse)({ status: 200, description: 'Logged out successfully' }),
-    __param(0, (0, auth_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
-    __metadata("design:returntype", Promise)
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Object)
 ], AuthController.prototype, "logout", null);
 __decorate([
     (0, common_1.Post)('resend-otp'),

@@ -107,9 +107,9 @@ __decorate([
     __metadata("design:type", String)
 ], SignupDto.prototype, "companyAlias", void 0);
 __decorate([
-    (0, swagger_1.ApiProperty)({ example: 'contact@company.com' }),
+    (0, swagger_1.ApiPropertyOptional)({ example: 'contact@company.com' }),
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsEmail)(),
-    (0, class_validator_1.IsNotEmpty)(),
     (0, class_transformer_1.Transform)(({ value }) => value?.toLowerCase().trim()),
     __metadata("design:type", String)
 ], SignupDto.prototype, "businessEmail", void 0);
@@ -121,14 +121,15 @@ __decorate([
     __metadata("design:type", String)
 ], SignupDto.prototype, "backupEmail", void 0);
 __decorate([
-    (0, swagger_1.ApiProperty)({ example: '+1234567890' }),
+    (0, swagger_1.ApiPropertyOptional)({ example: '+1234567890' }),
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsNotEmpty)(),
     (0, class_transformer_1.Transform)(({ value }) => value?.trim()),
     __metadata("design:type", String)
 ], SignupDto.prototype, "phone", void 0);
 __decorate([
-    (0, swagger_1.ApiProperty)({ type: BusinessAddressDto }),
+    (0, swagger_1.ApiPropertyOptional)({ type: BusinessAddressDto }),
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.ValidateNested)(),
     (0, class_transformer_1.Type)(() => BusinessAddressDto),
     __metadata("design:type", BusinessAddressDto)
@@ -140,7 +141,9 @@ __decorate([
     __metadata("design:type", String)
 ], SignupDto.prototype, "timezone", void 0);
 __decorate([
-    (0, swagger_1.ApiPropertyOptional)({ enum: ['startup', 'small', 'medium', 'large', 'enterprise'] }),
+    (0, swagger_1.ApiPropertyOptional)({
+        enum: ['startup', 'small', 'medium', 'large', 'enterprise'],
+    }),
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsEnum)(['startup', 'small', 'medium', 'large', 'enterprise']),
     __metadata("design:type", String)

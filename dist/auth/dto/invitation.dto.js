@@ -45,7 +45,7 @@ __decorate([
 __decorate([
     (0, swagger_1.ApiPropertyOptional)({
         type: [String],
-        example: ['read:projects', 'write:incident']
+        example: ['read:projects', 'write:incident'],
     }),
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsArray)(),
@@ -104,15 +104,15 @@ __decorate([
                 email: 'user1@company.com',
                 name: 'User One',
                 role: 'user',
-                permissions: ['read:projects']
+                permissions: ['read:projects'],
             },
             {
                 email: 'user2@company.com',
                 name: 'User Two',
                 role: 'user',
-                permissions: ['read:projects', 'write:incidents']
-            }
-        ]
+                permissions: ['read:projects', 'write:incidents'],
+            },
+        ],
     }),
     (0, class_validator_1.IsArray)(),
     __metadata("design:type", Array)

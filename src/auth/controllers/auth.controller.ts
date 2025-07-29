@@ -11,14 +11,38 @@ import {
   Param,
   Query,
   Req,
+  Res,
+  UnauthorizedException,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { Request, Response } from 'express';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { AuthService } from '../services/auth.service';
 import { SignupDto } from '../dto/signup.dto';
-import { LoginDto, VerifyOtpDto, RefreshTokenDto, ResendOtpDto, ChangeEmailDto } from '../dto/login.dto';
-import { InviteUserDto, AcceptInvitationDto, ResendInvitationDto, BulkInviteDto } from '../dto/invitation.dto';
-import { UpdateUserDto, UpdateUserStatusDto, RemoveUserDto, UpdateUserRoleDto, BulkUserActionDto } from '../dto/user-management.dto';
+import {
+  LoginDto,
+  VerifyOtpDto,
+  ResendOtpDto,
+  ChangeEmailDto,
+} from '../dto/login.dto';
+import {
+  InviteUserDto,
+  AcceptInvitationDto,
+  ResendInvitationDto,
+  BulkInviteDto,
+} from '../dto/invitation.dto';
+import {
+  UpdateUserDto,
+  UpdateUserStatusDto,
+  RemoveUserDto,
+  UpdateUserRoleDto,
+  BulkUserActionDto,
+} from '../dto/user-management.dto';
 import {
   AuthResponseDto,
   LoginResponseDto,
@@ -28,6 +52,7 @@ import {
 import { Public, CurrentUser } from '../../common/decorators/auth.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RequestUser } from '../../common/interfaces/auth.interface';
+import { UserStatus } from '../../common/interfaces/auth.interface';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -76,8 +101,31 @@ export class AuthController {
   })
   @ApiResponse({ status: 400, description: 'Invalid OTP' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async verifyOtp(@Body() verifyOtpDto: VerifyOtpDto): Promise<AuthResponseDto> {
-    return this.authService.verifyOtp(verifyOtpDto);
+  async verifyOtp(
+    @Body() verifyOtpDto: VerifyOtpDto,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<Omit<AuthResponseDto, 'accessToken' | 'refreshToken'>> {
+    const result = await this.authService.verifyOtp(verifyOtpDto);
+
+    // Set HttpOnly cookies
+    response.cookie('accessToken', result.accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 15 * 60 * 1000, // 15 minutes
+    });
+
+    response.cookie('refreshToken', result.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
+
+    // Return response without tokens
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { accessToken, refreshToken, ...responseWithoutTokens } = result;
+    return responseWithoutTokens;
   }
 
   @Public()
@@ -90,8 +138,50 @@ export class AuthController {
     type: AuthResponseDto,
   })
   @ApiResponse({ status: 401, description: 'Invalid refresh token' })
-  async refreshToken(@Body() refreshTokenDto: RefreshTokenDto) {
-    return this.authService.refreshToken(refreshTokenDto.refreshToken);
+  async refreshToken(
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const refreshToken = (request.cookies as Record<string, unknown>)
+      ?.refreshToken as string;
+    if (!refreshToken) {
+      throw new UnauthorizedException('Refresh token not found');
+    }
+
+    const result = await this.authService.refreshToken(refreshToken);
+
+    // Set new HttpOnly cookies
+    response.cookie('accessToken', result.accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 15 * 60 * 1000, // 15 minutes
+    });
+
+    response.cookie('refreshToken', result.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
+
+    return { message: 'Tokens refreshed successfully' };
+  }
+
+  @Post('logout')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Logout user and clear tokens' })
+  @ApiResponse({
+    status: 200,
+    description: 'Logged out successfully',
+  })
+  logout(@Res({ passthrough: true }) response: Response) {
+    // Clear HttpOnly cookies
+    response.clearCookie('accessToken');
+    response.clearCookie('refreshToken');
+
+    return { message: 'Logged out successfully' };
   }
 
   @Get('me')
@@ -104,27 +194,13 @@ export class AuthController {
     type: UserResponseDto,
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async getProfile(@CurrentUser() user: RequestUser) {
+  getProfile(@CurrentUser() user: RequestUser) {
     return {
       userId: user.userId,
       email: user.email,
       role: user.role,
       companyId: user.companyId,
       permissions: user.permissions,
-    };
-  }
-
-  @Post('logout')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Logout user' })
-  @ApiResponse({ status: 200, description: 'Logged out successfully' })
-  async logout(@CurrentUser() user: RequestUser) {
-    // In a production app, you might want to blacklist the token
-    // For now, we'll just return a success message
-    return {
-      message: 'Logged out successfully',
     };
   }
 
@@ -139,8 +215,8 @@ export class AuthController {
   })
   @ApiResponse({ status: 400, description: 'Bad request' })
   @ApiResponse({ status: 429, description: 'Too many requests' })
-  async resendOtp(@Body() resendOtpDto: ResendOtpDto, @Req() req: any) {
-    const ip = req.ip || req.connection.remoteAddress;
+  async resendOtp(@Body() resendOtpDto: ResendOtpDto, @Req() req: Request) {
+    const ip = req.ip || req.socket.remoteAddress || 'unknown';
     return this.authService.resendOtp(resendOtpDto, ip);
   }
 
@@ -172,17 +248,26 @@ export class AuthController {
     @CurrentUser() user: RequestUser,
   ) {
     const currentUser = await this.authService.getUserById(user.userId);
-    const results: Array<{ email: string; success: boolean; result?: any; error?: string }> = [];
-    
+    const results: Array<{
+      email: string;
+      success: boolean;
+      result?: any;
+      error?: string;
+    }> = [];
+
     for (const invitation of bulkInviteDto.invitations) {
       try {
-        const result = await this.authService.inviteUser(invitation, currentUser);
+        const result = await this.authService.inviteUser(
+          invitation,
+          currentUser,
+        );
         results.push({ email: invitation.email, success: true, result });
-      } catch (error) {
-        results.push({ 
-          email: invitation.email, 
-          success: false, 
-          error: error.message 
+      } catch (error: unknown) {
+        const errMsg = error instanceof Error ? error.message : 'Unknown error';
+        results.push({
+          email: invitation.email,
+          success: false,
+          error: errMsg,
         });
       }
     }
@@ -190,8 +275,8 @@ export class AuthController {
     return {
       message: 'Bulk invitation completed',
       results,
-      successful: results.filter(r => r.success).length,
-      failed: results.filter(r => !r.success).length,
+      successful: results.filter((r) => r.success).length,
+      failed: results.filter((r) => !r.success).length,
     };
   }
 
@@ -218,8 +303,31 @@ export class AuthController {
     type: AuthResponseDto,
   })
   @ApiResponse({ status: 400, description: 'Invalid invitation or OTP' })
-  async acceptInvitation(@Body() acceptInvitationDto: AcceptInvitationDto) {
-    return this.authService.acceptInvitation(acceptInvitationDto);
+  async acceptInvitation(
+    @Body() acceptInvitationDto: AcceptInvitationDto,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<Omit<AuthResponseDto, 'accessToken' | 'refreshToken'>> {
+    const result = await this.authService.acceptInvitation(acceptInvitationDto);
+
+    // Set HttpOnly cookies
+    response.cookie('accessToken', result.accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 15 * 60 * 1000, // 15 minutes
+    });
+
+    response.cookie('refreshToken', result.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
+
+    // Return response without tokens
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { accessToken, refreshToken, ...responseWithoutTokens } = result;
+    return responseWithoutTokens;
   }
 
   // User Management Endpoints
@@ -236,9 +344,9 @@ export class AuthController {
   ) {
     return this.authService.getCompanyUsers(
       user.companyId,
-      +page,
-      +limit,
-      status as any,
+      Number(page),
+      Number(limit),
+      status as UserStatus | undefined,
     );
   }
 
@@ -254,7 +362,12 @@ export class AuthController {
     @CurrentUser() user: RequestUser,
   ) {
     const currentUser = await this.authService.getUserById(user.userId);
-    return this.authService.updateUser(userId, updateUserDto, currentUser);
+    const result = await this.authService.updateUser(
+      userId,
+      updateUserDto,
+      currentUser,
+    );
+    return result;
   }
 
   @Patch('users/:userId/status')
@@ -268,8 +381,12 @@ export class AuthController {
     @Body() updateUserStatusDto: UpdateUserStatusDto,
     @CurrentUser() user: RequestUser,
   ) {
-    const currentUser = await this.authService.getUserById(user.userId );
-    return this.authService.updateUserStatus(userId, updateUserStatusDto, currentUser);
+    const currentUser = await this.authService.getUserById(user.userId);
+    return this.authService.updateUserStatus(
+      userId,
+      updateUserStatusDto,
+      currentUser,
+    );
   }
 
   @Patch('users/:userId/role')
@@ -284,7 +401,12 @@ export class AuthController {
     @CurrentUser() user: RequestUser,
   ) {
     const currentUser = await this.authService.getUserById(user.userId);
-    return this.authService.updateUser(userId, updateUserRoleDto, currentUser);
+    const result = await this.authService.updateUser(
+      userId,
+      updateUserRoleDto,
+      currentUser,
+    );
+    return result;
   }
 
   @Delete('users/:userId')
@@ -314,30 +436,35 @@ export class AuthController {
   ) {
     const currentUser = await this.authService.getUserById(user.userId);
     const { userIds, action, reason } = bulkUserActionDto;
-    const results: Array<{ userId: string; success: boolean; result?: any; error?: string }> = [];
+    const results: Array<{
+      userId: string;
+      success: boolean;
+      result?: any;
+      error?: string;
+    }> = [];
 
     for (const userId of userIds) {
       try {
-        let result;
+        let result: unknown;
         switch (action) {
           case 'activate':
             result = await this.authService.updateUserStatus(
               userId,
-              { status: 'active' as any },
+              { status: UserStatus.ACTIVE },
               currentUser,
             );
             break;
           case 'deactivate':
             result = await this.authService.updateUserStatus(
               userId,
-              { status: 'inactive' as any, reason },
+              { status: UserStatus.INACTIVE, reason },
               currentUser,
             );
             break;
           case 'suspend':
             result = await this.authService.updateUserStatus(
               userId,
-              { status: 'suspended' as any, reason },
+              { status: UserStatus.SUSPENDED, reason },
               currentUser,
             );
             break;
@@ -349,17 +476,18 @@ export class AuthController {
             );
             break;
         }
-        results.push({ userId, success: true, result });
-      } catch (error) {
-        results.push({ userId, success: false, error: error.message });
+        results.push({ userId, success: true, result: result ?? null });
+      } catch (error: unknown) {
+        const errMsg = error instanceof Error ? error.message : 'Unknown error';
+        results.push({ userId, success: false, error: errMsg });
       }
     }
 
     return {
       message: 'Bulk action completed',
       results,
-      successful: results.filter(r => r.success).length,
-      failed: results.filter(r => !r.success).length,
+      successful: results.filter((r) => r.success).length,
+      failed: results.filter((r) => !r.success).length,
     };
   }
 
@@ -373,6 +501,10 @@ export class AuthController {
     @Body() changeEmailDto: ChangeEmailDto,
     @CurrentUser() user: RequestUser,
   ) {
-    return this.authService.changeEmail(user.userId, changeEmailDto);
+    const result = await this.authService.changeEmail(
+      user.userId,
+      changeEmailDto,
+    );
+    return result;
   }
 }
