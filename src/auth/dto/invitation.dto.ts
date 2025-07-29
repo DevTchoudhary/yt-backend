@@ -22,7 +22,7 @@ export class InviteUserDto {
 
   @ApiPropertyOptional({ 
     type: [String], 
-    example: ['read:projects', 'write:incidents'] 
+    example: ['read:projects', 'write:incident'] 
   })
   @IsOptional()
   @IsArray()
@@ -33,6 +33,11 @@ export class InviteUserDto {
   @IsOptional()
   @IsString()
   message?: string;
+
+  @IsOptional()
+  @IsString()
+  @ApiPropertyOptional()
+  phone?: string;
 }
 
 export class AcceptInvitationDto {

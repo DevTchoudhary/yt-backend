@@ -65,7 +65,7 @@ __decorate([
     __metadata("design:type", mongoose_2.Types.ObjectId)
 ], User.prototype, "companyId", void 0);
 __decorate([
-    (0, mongoose_1.Prop)({ required: true, trim: true }),
+    (0, mongoose_1.Prop)({ required: false, trim: true }),
     __metadata("design:type", String)
 ], User.prototype, "phone", void 0);
 __decorate([

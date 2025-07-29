@@ -303,7 +303,16 @@ let AuthService = AuthService_1 = class AuthService {
         };
     }
     async inviteUser(inviteUserDto, invitedBy) {
-        const { email, name, role, permissions, message } = inviteUserDto;
+        const { email, name, role, permissions, message, phone } = inviteUserDto;
+        const inviteUser = await this.userModel.findOne({ _id: invitedBy._id });
+        const expiresAt = new Date();
+        expiresAt.setMinutes(expiresAt.getMinutes() + this.configService.get('security.otpExpiresInMinutes'));
+        if (!inviteUser) {
+            throw new common_1.BadRequestException('User not found');
+        }
+        if (inviteUser) {
+            console.log(inviteUser);
+        }
         const existingUser = await this.userModel.findOne({ email });
         if (existingUser) {
             throw new common_1.ConflictException('User with this email already exists');
@@ -323,7 +332,7 @@ let AuthService = AuthService_1 = class AuthService {
             invitationToken,
             invitationExpiry,
             invitedBy: invitedBy._id,
-            phone: '',
+            phone,
             timezone: 'UTC',
         });
         await user.save();
@@ -344,6 +353,7 @@ let AuthService = AuthService_1 = class AuthService {
                 name: user.name,
                 role: user.role,
                 status: user.status,
+                phone: user.status,
             },
         };
     }
@@ -409,7 +419,7 @@ let AuthService = AuthService_1 = class AuthService {
     async updateUser(userId, updateUserDto, updatedBy) {
         const user = await this.userModel.findOne({
             _id: userId,
-            companyId: updatedBy.companyId
+            companyId: new mongoose_2.Types.ObjectId(updatedBy.companyId)
         });
         if (!user) {
             throw new common_1.BadRequestException('User not found');
@@ -432,7 +442,7 @@ let AuthService = AuthService_1 = class AuthService {
         const { status, reason } = updateUserStatusDto;
         const user = await this.userModel.findOne({
             _id: userId,
-            companyId: updatedBy.companyId
+            companyId: new mongoose_2.Types.ObjectId(updatedBy.companyId),
         });
         if (!user) {
             throw new common_1.BadRequestException('User not found');
@@ -463,39 +473,44 @@ let AuthService = AuthService_1 = class AuthService {
     }
     async removeUser(userId, removeUserDto, removedBy) {
         const { reason, transferData, transferToUserId } = removeUserDto;
-        const user = await this.userModel.findOne({
-            _id: userId,
-            companyId: removedBy.companyId
-        });
-        if (!user) {
-            throw new common_1.BadRequestException('User not found');
-        }
-        if (removedBy.role !== auth_interface_1.UserRole.ADMIN && removedBy.role !== auth_interface_1.UserRole.COMPANY_ADMIN) {
-            throw new common_1.ForbiddenException('Insufficient permissions to remove user');
-        }
-        if (user._id?.toString() === removedBy._id?.toString()) {
-            throw new common_1.ForbiddenException('Cannot remove your own account');
-        }
-        if (transferData && transferToUserId) {
-            const transferToUser = await this.userModel.findOne({
-                _id: transferToUserId,
-                companyId: removedBy.companyId
+        try {
+            const user = await this.userModel.findOne({
+                _id: userId,
+                companyId: new mongoose_2.Types.ObjectId(removedBy.companyId)
             });
-            if (!transferToUser) {
-                throw new common_1.BadRequestException('Transfer target user not found');
+            if (!user) {
+                throw new common_1.BadRequestException('User not found');
             }
-            this.logger.log(`Data transfer from ${user.email} to ${transferToUser.email} initiated`);
+            if (removedBy.role !== auth_interface_1.UserRole.ADMIN && removedBy.role !== auth_interface_1.UserRole.COMPANY_ADMIN) {
+                throw new common_1.ForbiddenException('Insufficient permissions to remove user');
+            }
+            if (user._id?.toString() === removedBy._id?.toString()) {
+                throw new common_1.ForbiddenException('Cannot remove your own account');
+            }
+            if (transferData && transferToUserId) {
+                const transferToUser = await this.userModel.findOne({
+                    _id: transferToUserId,
+                    companyId: removedBy.companyId
+                });
+                if (!transferToUser) {
+                    throw new common_1.BadRequestException('Transfer target user not found');
+                }
+                this.logger.log(`Data transfer from ${user.email} to ${transferToUser.email} initiated`);
+            }
+            user.status = auth_interface_1.UserStatus.INACTIVE;
+            user.deactivationReason = reason || 'User removed from company';
+            user.deactivatedAt = new Date();
+            user.deactivatedBy = removedBy._id;
+            await user.save();
+            this.logger.log(`User ${user.email} removed by ${removedBy.email}`);
+            return {
+                message: 'User removed successfully',
+                transferInitiated: transferData && transferToUserId,
+            };
         }
-        user.status = auth_interface_1.UserStatus.INACTIVE;
-        user.deactivationReason = reason || 'User removed from company';
-        user.deactivatedAt = new Date();
-        user.deactivatedBy = removedBy._id;
-        await user.save();
-        this.logger.log(`User ${user.email} removed by ${removedBy.email}`);
-        return {
-            message: 'User removed successfully',
-            transferInitiated: transferData && transferToUserId,
-        };
+        catch (error) {
+            console.error('Error removing user:', error);
+        }
     }
     async changeEmail(userId, changeEmailDto) {
         const { newEmail, otp } = changeEmailDto;

@@ -5,6 +5,7 @@ export declare class InviteUserDto {
     role: UserRole;
     permissions?: string[];
     message?: string;
+    phone?: string;
 }
 export declare class AcceptInvitationDto {
     token: string;

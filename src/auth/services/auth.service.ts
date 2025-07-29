@@ -7,7 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { User, UserDocument } from '../../users/entities/user.entity';
@@ -396,71 +396,88 @@ export class AuthService {
   }
 
   // User Invitation Methods
-  async inviteUser(inviteUserDto: InviteUserDto, invitedBy: UserDocument) {
-    const { email, name, role, permissions, message } = inviteUserDto;
+async inviteUser(inviteUserDto: InviteUserDto, invitedBy: UserDocument) {
+  const { email, name, role, permissions, message, phone } = inviteUserDto;
+  const inviteUser = await this.userModel.findOne({ _id: invitedBy._id });
+  const expiresAt = new Date();
+  expiresAt.setMinutes(
+    expiresAt.getMinutes() + this.configService.get('security.otpExpiresInMinutes'),
+  );
 
-    // Check if user already exists
-    const existingUser = await this.userModel.findOne({ email });
-    if (existingUser) {
-      throw new ConflictException('User with this email already exists');
-    }
+  if(!inviteUser){
+    throw new BadRequestException('User not found')
+  }
 
-    // Validate email
-    if (!this.validationService.isValidBusinessEmail(email)) {
-      throw new BadRequestException('Please use a valid business email address');
-    }
+  // if(inviteUser.status !== UserStatus.ACTIVE){
+  //   throw new BadRequestException('User is not active')
+  // }
 
-    // Generate invitation token
-    const invitationToken = this.validationService.generateSecureToken();
-    const invitationExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+  if(inviteUser){
+    console.log(inviteUser)
+  }
 
-    // Create user with pending status
-    const user = new this.userModel({
+  // ✅ Check if user already exists
+  const existingUser = await this.userModel.findOne({ email });
+  if (existingUser) {
+    throw new ConflictException('User with this email already exists');
+  }
+
+  // ✅ Validate email
+  if (!this.validationService.isValidBusinessEmail(email)) {
+    throw new BadRequestException('Please use a valid business email address');
+  }
+
+  // ✅ Generate invitation token
+  const invitationToken = this.validationService.generateSecureToken();
+  const invitationExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+  const user = new this.userModel({
+    email,
+    name,
+    role,
+    permissions: permissions || [],
+    companyId: invitedBy.companyId,
+    status: UserStatus.PENDING,
+    invitationToken,
+    invitationExpiry,
+    invitedBy: invitedBy._id,
+    phone,
+    timezone: 'UTC',
+});
+
+  await user.save();
+
+  // ✅ Send invitation email
+  try {
+    await this.emailService.sendInvitationEmail(
       email,
       name,
-      role,
-      permissions: permissions || [],
-      companyId: invitedBy.companyId,
-      status: UserStatus.PENDING,
+      invitedBy.name,
+      (invitedBy.companyId as any).name,
       invitationToken,
-      invitationExpiry,
-      invitedBy: invitedBy._id,
-      phone: '', // Will be filled during invitation acceptance
-      timezone: 'UTC',
-    });
-
-    await user.save();
-
-    // Send invitation email
-    try {
-      await this.emailService.sendInvitationEmail(
-        email,
-        name,
-        invitedBy.name,
-        (invitedBy.companyId as any).name,
-        invitationToken,
-        message,
-      );
-    } catch (error) {
-      // Rollback user creation if email fails
-      await this.userModel.findByIdAndDelete(user._id);
-      this.logger.error('Failed to send invitation email', error);
-      throw new BadRequestException('Failed to send invitation. Please try again.');
-    }
-
-    this.logger.log(`User invitation sent to ${email} by ${invitedBy.email}`);
-
-    return {
-      message: 'Invitation sent successfully',
-      invitedUser: {
-        id: user._id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        status: user.status,
-      },
-    };
+      message, // ✅ optional string  // ✅ defined above
+    );
+  } catch (error) {
+    await this.userModel.findByIdAndDelete(user._id);
+    this.logger.error('Failed to send invitation email', error);
+    throw new BadRequestException('Failed to send invitation. Please try again.');
   }
+
+  this.logger.log(`User invitation sent to ${email} by ${invitedBy.email}`);
+
+  return {
+    message: 'Invitation sent successfully',
+    invitedUser: {
+      id: user._id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      status: user.status,
+      phone:user.status,
+    },
+  };
+}
+
 
   async resendInvitation(resendInvitationDto: ResendInvitationDto, invitedBy: UserDocument) {
     const { email } = resendInvitationDto;
@@ -554,7 +571,7 @@ export class AuthService {
   async updateUser(userId: string, updateUserDto: UpdateUserDto, updatedBy: UserDocument) {
     const user = await this.userModel.findOne({ 
       _id: userId, 
-      companyId: updatedBy.companyId 
+      companyId: new Types.ObjectId(updatedBy.companyId)
     });
 
     if (!user) {
@@ -586,8 +603,8 @@ export class AuthService {
     const { status, reason } = updateUserStatusDto;
     
     const user = await this.userModel.findOne({ 
-      _id: userId, 
-      companyId: updatedBy.companyId 
+      _id: userId,
+      companyId: new Types.ObjectId(updatedBy.companyId),
     });
 
     if (!user) {
@@ -627,10 +644,11 @@ export class AuthService {
 
   async removeUser(userId: string, removeUserDto: RemoveUserDto, removedBy: UserDocument) {
     const { reason, transferData, transferToUserId } = removeUserDto;
-    
-    const user = await this.userModel.findOne({ 
-      _id: userId, 
-      companyId: removedBy.companyId 
+
+   try {
+    const user = await this.userModel.findOne({
+      _id: userId,
+      companyId: new Types.ObjectId(removedBy.companyId)
     });
 
     if (!user) {
@@ -652,7 +670,7 @@ export class AuthService {
         _id: transferToUserId, 
         companyId: removedBy.companyId 
       });
-      
+
       if (!transferToUser) {
         throw new BadRequestException('Transfer target user not found');
       }
@@ -676,6 +694,10 @@ export class AuthService {
       message: 'User removed successfully',
       transferInitiated: transferData && transferToUserId,
     };
+  
+   } catch (error) {
+    console.error('Error removing user:', error);
+   }
   }
 
   async changeEmail(userId: string, changeEmailDto: ChangeEmailDto) {
