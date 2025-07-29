@@ -20,21 +20,27 @@ let EmailService = EmailService_1 = class EmailService {
     transporter;
     constructor(configService) {
         this.configService = configService;
+        this.logger.log('Initializing EmailService...');
         this.transporter = nodemailer.createTransport({
             host: this.configService.get('SMTP_HOST'),
-            port: this.configService.get('SMTP_PORT'),
+            port: Number(this.configService.get('SMTP_PORT')),
             secure: this.configService.get('SMTP_SECURE') === 'true',
             auth: {
                 user: this.configService.get('SMTP_USER'),
                 pass: this.configService.get('SMTP_PASS'),
             },
         });
+        this.transporter.verify((error, success) => {
+            if (error) {
+                this.logger.error('SMTP connection verification failed:', error);
+            }
+            else {
+                this.logger.log('SMTP connection verified successfully');
+            }
+        });
     }
     async sendOtpEmail(email, otp, name) {
-        if (this.configService.get('NODE_ENV') === 'development') {
-            this.logger.log(`🔐 OTP for ${email}: ${otp} (Development Mode - Not Sent via Email)`);
-            return;
-        }
+        this.logger.log(`Preparing to send OTP to ${email}`);
         try {
             const mailOptions = {
                 from: String(this.configService.get('SMTP_FROM')),
@@ -42,11 +48,12 @@ let EmailService = EmailService_1 = class EmailService {
                 subject: 'Your OTP for Yukti Platform',
                 html: this.getOtpEmailTemplate(otp, name),
             };
+            this.logger.log(`Sending OTP email to ${email}...`);
             await this.transporter.sendMail(mailOptions);
-            this.logger.log(`OTP email sent to ${email}`);
+            this.logger.log(`OTP email sent successfully to ${email}`);
         }
         catch (error) {
-            this.logger.error(`Failed to send OTP email to ${email}`, error instanceof Error ? error.message : error);
+            this.logger.error(`Failed to send OTP email to ${email}`, error instanceof Error ? error.message : JSON.stringify(error));
             throw new Error('Failed to send OTP email');
         }
     }
@@ -62,7 +69,7 @@ let EmailService = EmailService_1 = class EmailService {
             this.logger.log(`Welcome email sent to ${email}`);
         }
         catch (error) {
-            this.logger.error(`Failed to send welcome email to ${email}`, error instanceof Error ? error.message : error);
+            this.logger.error(`Failed to send welcome email to ${email}`, error instanceof Error ? error.message : JSON.stringify(error));
             throw new Error('Failed to send welcome email');
         }
     }
@@ -78,7 +85,7 @@ let EmailService = EmailService_1 = class EmailService {
             this.logger.log(`Approval email sent to ${email}`);
         }
         catch (error) {
-            this.logger.error(`Failed to send approval email to ${email}`, error instanceof Error ? error.message : error);
+            this.logger.error(`Failed to send approval email to ${email}`, error instanceof Error ? error.message : JSON.stringify(error));
             throw new Error('Failed to send approval email');
         }
     }
@@ -95,7 +102,7 @@ let EmailService = EmailService_1 = class EmailService {
             this.logger.log(`Invitation email sent to ${email}`);
         }
         catch (error) {
-            this.logger.error(`Failed to send invitation email to ${email}`, error instanceof Error ? error.message : error);
+            this.logger.error(`Failed to send invitation email to ${email}`, error instanceof Error ? error.message : JSON.stringify(error));
             throw new Error('Failed to send invitation email');
         }
     }
@@ -112,7 +119,7 @@ let EmailService = EmailService_1 = class EmailService {
             this.logger.log(`Password reset email sent to ${email}`);
         }
         catch (error) {
-            this.logger.error(`Failed to send password reset email to ${email}`, error instanceof Error ? error.message : error);
+            this.logger.error(`Failed to send password reset email to ${email}`, error instanceof Error ? error.message : JSON.stringify(error));
             throw new Error('Failed to send password reset email');
         }
     }
@@ -128,15 +135,11 @@ let EmailService = EmailService_1 = class EmailService {
             this.logger.log(`Email change confirmation sent to ${newEmail}`);
         }
         catch (error) {
-            this.logger.error(`Failed to send email change confirmation to ${newEmail}`, error instanceof Error ? error.message : error);
+            this.logger.error(`Failed to send email change confirmation to ${newEmail}`, error instanceof Error ? error.message : JSON.stringify(error));
             throw new Error('Failed to send email change confirmation');
         }
     }
     async sendWelcomeEmailWithOtp(email, name, companyName, otp) {
-        if (this.configService.get('NODE_ENV') === 'development') {
-            this.logger.log(`🔐 Welcome OTP for ${email}: ${otp} (Development Mode - Not Sent via Email)`);
-            return;
-        }
         try {
             const mailOptions = {
                 from: String(this.configService.get('SMTP_FROM')),
@@ -148,7 +151,7 @@ let EmailService = EmailService_1 = class EmailService {
             this.logger.log(`Welcome email with OTP sent to ${email}`);
         }
         catch (error) {
-            this.logger.error(`Failed to send welcome email with OTP to ${email}`, error instanceof Error ? error.message : error);
+            this.logger.error(`Failed to send welcome email with OTP to ${email}`, error instanceof Error ? error.message : JSON.stringify(error));
             throw new Error('Failed to send welcome email with OTP');
         }
     }

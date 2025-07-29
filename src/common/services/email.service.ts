@@ -7,26 +7,33 @@ export class EmailService {
   private readonly logger = new Logger(EmailService.name);
   private transporter: nodemailer.Transporter;
 
-  constructor(private configService: ConfigService) {
+  constructor(private readonly configService: ConfigService) {
+    this.logger.log('Initializing EmailService...');
+
     this.transporter = nodemailer.createTransport({
-      host: this.configService.get('SMTP_HOST'),
-      port: this.configService.get('SMTP_PORT'),
-      secure: this.configService.get('SMTP_SECURE') === 'true',
+      host: this.configService.get<string>('SMTP_HOST'),
+      port: Number(this.configService.get<string>('SMTP_PORT')),
+      secure: this.configService.get<string>('SMTP_SECURE') === 'true',
       auth: {
-        user: this.configService.get('SMTP_USER'),
-        pass: this.configService.get('SMTP_PASS'),
+        user: this.configService.get<string>('SMTP_USER'),
+        pass: this.configService.get<string>('SMTP_PASS'),
       },
+    });
+
+    // SMTP connection verify karna (optional but helpful)
+    this.transporter.verify((error, success) => {
+      if (error) {
+        this.logger.error('SMTP connection verification failed:', error);
+      } else {
+        this.logger.log('SMTP connection verified successfully');
+      }
     });
   }
 
   async sendOtpEmail(email: string, otp: string, name?: string): Promise<void> {
-    // In development mode, just log the OTP instead of sending email
-    if (this.configService.get('NODE_ENV') === 'development') {
-      this.logger.log(
-        `🔐 OTP for ${email}: ${otp} (Development Mode - Not Sent via Email)`,
-      );
-      return;
-    }
+    this.logger.log(`Preparing to send OTP to ${email}`);
+
+    // **Yahan development mode me email send skip nahi hoga. Sare mails jayenge.**
 
     try {
       const mailOptions = {
@@ -36,12 +43,13 @@ export class EmailService {
         html: this.getOtpEmailTemplate(otp, name),
       };
 
+      this.logger.log(`Sending OTP email to ${email}...`);
       await this.transporter.sendMail(mailOptions);
-      this.logger.log(`OTP email sent to ${email}`);
+      this.logger.log(`OTP email sent successfully to ${email}`);
     } catch (error: unknown) {
       this.logger.error(
         `Failed to send OTP email to ${email}`,
-        error instanceof Error ? error.message : error,
+        error instanceof Error ? error.message : JSON.stringify(error),
       );
       throw new Error('Failed to send OTP email');
     }
@@ -65,7 +73,7 @@ export class EmailService {
     } catch (error: unknown) {
       this.logger.error(
         `Failed to send welcome email to ${email}`,
-        error instanceof Error ? error.message : error,
+        error instanceof Error ? error.message : JSON.stringify(error),
       );
       throw new Error('Failed to send welcome email');
     }
@@ -90,7 +98,7 @@ export class EmailService {
     } catch (error: unknown) {
       this.logger.error(
         `Failed to send approval email to ${email}`,
-        error instanceof Error ? error.message : error,
+        error instanceof Error ? error.message : JSON.stringify(error),
       );
       throw new Error('Failed to send approval email');
     }
@@ -106,7 +114,10 @@ export class EmailService {
     otp?: string,
   ): Promise<void> {
     try {
-      const invitationUrl = `${this.configService.get('FRONTEND_URL', 'http://localhost:3000')}/accept-invitation?token=${invitationToken}`;
+      const invitationUrl = `${this.configService.get(
+        'FRONTEND_URL',
+        'http://localhost:3000',
+      )}/accept-invitation?token=${invitationToken}`;
 
       const mailOptions = {
         from: String(this.configService.get('SMTP_FROM')),
@@ -127,7 +138,7 @@ export class EmailService {
     } catch (error: unknown) {
       this.logger.error(
         `Failed to send invitation email to ${email}`,
-        error instanceof Error ? error.message : error,
+        error instanceof Error ? error.message : JSON.stringify(error),
       );
       throw new Error('Failed to send invitation email');
     }
@@ -139,7 +150,10 @@ export class EmailService {
     resetToken: string,
   ): Promise<void> {
     try {
-      const resetUrl = `${this.configService.get('FRONTEND_URL', 'http://localhost:3000')}/reset-password?token=${resetToken}`;
+      const resetUrl = `${this.configService.get(
+        'FRONTEND_URL',
+        'http://localhost:3000',
+      )}/reset-password?token=${resetToken}`;
 
       const mailOptions = {
         from: String(this.configService.get('SMTP_FROM')),
@@ -153,7 +167,7 @@ export class EmailService {
     } catch (error: unknown) {
       this.logger.error(
         `Failed to send password reset email to ${email}`,
-        error instanceof Error ? error.message : error,
+        error instanceof Error ? error.message : JSON.stringify(error),
       );
       throw new Error('Failed to send password reset email');
     }
@@ -183,7 +197,7 @@ export class EmailService {
     } catch (error: unknown) {
       this.logger.error(
         `Failed to send email change confirmation to ${newEmail}`,
-        error instanceof Error ? error.message : error,
+        error instanceof Error ? error.message : JSON.stringify(error),
       );
       throw new Error('Failed to send email change confirmation');
     }
@@ -195,13 +209,7 @@ export class EmailService {
     companyName: string,
     otp: string,
   ): Promise<void> {
-    // In development mode, just log the OTP instead of sending email
-    if (this.configService.get('NODE_ENV') === 'development') {
-      this.logger.log(
-        `🔐 Welcome OTP for ${email}: ${otp} (Development Mode - Not Sent via Email)`,
-      );
-      return;
-    }
+    // **Koi development mode skip nahi hai, email hamesha jayega**
 
     try {
       const mailOptions = {
@@ -216,7 +224,7 @@ export class EmailService {
     } catch (error: unknown) {
       this.logger.error(
         `Failed to send welcome email with OTP to ${email}`,
-        error instanceof Error ? error.message : error,
+        error instanceof Error ? error.message : JSON.stringify(error),
       );
       throw new Error('Failed to send welcome email with OTP');
     }
@@ -277,7 +285,7 @@ export class EmailService {
     companyName: string,
     invitationUrl: string,
     message?: string,
-    otp?: string, // ✅ Add this line
+    otp?: string,
   ): string {
     return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
