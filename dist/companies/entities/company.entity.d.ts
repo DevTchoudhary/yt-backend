@@ -5,7 +5,7 @@ export type CompanyDocument = Company & Document;
 export declare class Company implements BaseEntity {
     name: string;
     alias: string;
-    businessEmail: string;
+    businessEmail?: string;
     backupEmail?: string;
     businessAddress?: {
         street: string;

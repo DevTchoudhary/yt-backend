@@ -5,14 +5,14 @@ export declare class UserResponseDto {
     name: string;
     role: UserRole;
     companyId: string;
-    phone: string;
+    phone?: string;
     timezone: string;
     status: UserStatus;
     emailVerified: boolean;
     twoFactorEnabled: boolean;
     lastLogin?: Date;
-    createdAt: Date;
-    updatedAt: Date;
+    createdAt?: Date;
+    updatedAt?: Date;
 }
 export declare class CompanyResponseDto {
     id: string;
@@ -22,15 +22,15 @@ export declare class CompanyResponseDto {
     status: CompanyStatus;
     subscriptionPlan: string;
     onboardingCompleted: boolean;
-    dashboardUrl: string;
-    createdAt: Date;
-    updatedAt: Date;
+    dashboardUrl?: string;
+    createdAt?: Date;
+    updatedAt?: Date;
 }
 export declare class AuthResponseDto {
     accessToken: string;
     refreshToken: string;
     user: UserResponseDto;
-    company: CompanyResponseDto;
+    company?: CompanyResponseDto | null;
 }
 export declare class LoginResponseDto {
     message: string;
@@ -40,5 +40,13 @@ export declare class SignupResponseDto {
     message: string;
     userId: string;
     companyId: string;
-    requiresApproval: boolean;
+    otpSent: boolean;
+    requiresVerification: boolean;
+}
+export declare class TokenVerificationResponseDto {
+    valid: boolean;
+    user?: UserResponseDto;
+    company?: CompanyResponseDto;
+    expiresAt?: Date;
+    error?: string;
 }

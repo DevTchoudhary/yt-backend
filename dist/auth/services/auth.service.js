@@ -96,18 +96,32 @@ let AuthService = AuthService_1 = class AuthService {
             permissions: auth_interface_1.ROLE_PERMISSIONS[auth_interface_1.UserRole.CLIENT],
         });
         const savedUser = await user.save();
+        const otp = this.validationService.generateOtp();
+        const expiresAt = new Date();
+        expiresAt.setMinutes(expiresAt.getMinutes() +
+            Number(this.configService.get('security.otpExpiresInMinutes')));
+        savedUser.otp = {
+            code: otp,
+            expiresAt,
+            attempts: 0,
+            verified: false,
+        };
+        savedUser.lastOtpRequest = new Date();
+        savedUser.otpRequestCount = 1;
+        await savedUser.save();
         try {
-            await this.emailService.sendWelcomeEmail(email, name, companyName);
+            await this.emailService.sendWelcomeEmailWithOtp(email, name, companyName, otp);
         }
         catch (error) {
-            this.logger.error('Failed to send welcome email', error);
+            this.logger.error('Failed to send welcome email with OTP', error);
         }
         this.logger.log(`New user signup: ${email} for company: ${companyName}`);
         return {
-            message: 'Signup successful. Your account is pending approval.',
+            message: 'Signup successful. Please check your email for verification OTP.',
             userId: savedUser._id?.toString() || '',
             companyId: savedCompany._id?.toString() || '',
-            requiresApproval: true,
+            otpSent: true,
+            requiresVerification: true,
         };
     }
     async login(loginDto, ip, userAgent) {
@@ -137,7 +151,7 @@ let AuthService = AuthService_1 = class AuthService {
         const otp = this.validationService.generateOtp();
         const expiresAt = new Date();
         expiresAt.setMinutes(expiresAt.getMinutes() +
-            (this.configService.get('security.otpExpiresInMinutes') ?? 10));
+            Number(this.configService.get('security.otpExpiresInMinutes')));
         user.otp = {
             code: otp,
             expiresAt,
@@ -194,7 +208,7 @@ let AuthService = AuthService_1 = class AuthService {
         const otp = this.validationService.generateOtp();
         const expiresAt = new Date();
         expiresAt.setMinutes(expiresAt.getMinutes() +
-            (this.configService.get('security.otpExpiresInMinutes') ?? 10));
+            Number(this.configService.get('security.otpExpiresInMinutes')));
         user.otp = {
             code: otp,
             expiresAt,
@@ -257,9 +271,10 @@ let AuthService = AuthService_1 = class AuthService {
     }
     async refreshToken(refreshToken) {
         try {
-            const payload = this.jwtService.verify(refreshToken, {
+            const rawPayload = this.jwtService.verify(refreshToken, {
                 secret: this.configService.get('jwt.refreshSecret'),
             });
+            const payload = rawPayload;
             const user = await this.userModel
                 .findById(payload.sub)
                 .populate('companyId');
@@ -267,11 +282,7 @@ let AuthService = AuthService_1 = class AuthService {
                 throw new common_1.UnauthorizedException('Invalid refresh token');
             }
             const tokens = await this.generateTokens(user);
-            return {
-                ...tokens,
-                user: this.sanitizeUser(user),
-                company: this.sanitizeCompany(user.companyId),
-            };
+            return tokens;
         }
         catch {
             throw new common_1.UnauthorizedException('Invalid refresh token');
@@ -298,30 +309,35 @@ let AuthService = AuthService_1 = class AuthService {
         return { accessToken, refreshToken };
     }
     sanitizeUser(user) {
-        const { otp, security, ...sanitizedUser } = user.toObject();
+        const userObj = user.toObject();
+        const { otp, security, ...sanitized } = userObj;
         return {
-            ...sanitizedUser,
-            id: sanitizedUser._id.toHexString(),
-            companyId: sanitizedUser.companyId.toHexString(),
-            company: this.sanitizeCompany(user.companyId) ||
-                undefined,
+            ...sanitized,
+            id: userObj._id.toString(),
+            companyId: userObj.companyId.toString(),
         };
     }
     sanitizeCompany(company) {
         if (!company)
             return null;
-        const companyObject = company.toObject();
+        const companyObj = company.toObject();
         return {
-            ...companyObject,
-            id: companyObject._id.toHexString(),
-            dashboardUrl: `/dashboard/${companyObject.alias}`,
+            ...companyObj,
+            id: companyObj._id.toString(),
         };
     }
     async inviteUser(inviteUserDto, invitedBy) {
         const { email, name, role, permissions, message, phone } = inviteUserDto;
+        const inviteUser = await this.userModel.findOne({ _id: invitedBy._id });
         const expiresAt = new Date();
         expiresAt.setMinutes(expiresAt.getMinutes() +
-            (this.configService.get('security.otpExpiresInMinutes') ?? 10));
+            Number(this.configService.get('security.otpExpiresInMinutes')));
+        if (!inviteUser) {
+            throw new common_1.BadRequestException('User not found');
+        }
+        if (inviteUser) {
+            console.log(inviteUser);
+        }
         const existingUser = await this.userModel.findOne({ email });
         if (existingUser) {
             throw new common_1.ConflictException('User with this email already exists');
@@ -346,10 +362,7 @@ let AuthService = AuthService_1 = class AuthService {
         });
         await user.save();
         try {
-            const company = await this.companyModel.findById(invitedBy.companyId);
-            if (!company) {
-                throw new Error('Inviting user company not found');
-            }
+            const company = invitedBy.companyId;
             await this.emailService.sendInvitationEmail(email, name, invitedBy.name, company.name, invitationToken, message);
         }
         catch (error) {
@@ -386,10 +399,7 @@ let AuthService = AuthService_1 = class AuthService {
             await user.save();
         }
         try {
-            const company = await this.companyModel.findById(invitedBy.companyId);
-            if (!company) {
-                throw new Error('Inviting user company not found');
-            }
+            const company = invitedBy.companyId;
             await this.emailService.sendInvitationEmail(email, user.name, invitedBy.name, company.name, user.invitationToken || '');
         }
         catch (error) {
@@ -438,7 +448,7 @@ let AuthService = AuthService_1 = class AuthService {
     async updateUser(userId, updateUserDto, updatedBy) {
         const user = await this.userModel.findOne({
             _id: userId,
-            companyId: new mongoose_2.Types.ObjectId(updatedBy.companyId),
+            companyId: new mongoose_2.Types.ObjectId(updatedBy.companyId.toString()),
         });
         if (!user) {
             throw new common_1.BadRequestException('User not found');
@@ -464,7 +474,7 @@ let AuthService = AuthService_1 = class AuthService {
         const { status, reason } = updateUserStatusDto;
         const user = await this.userModel.findOne({
             _id: userId,
-            companyId: new mongoose_2.Types.ObjectId(updatedBy.companyId),
+            companyId: new mongoose_2.Types.ObjectId(updatedBy.companyId.toString()),
         });
         if (!user) {
             throw new common_1.BadRequestException('User not found');
@@ -479,9 +489,9 @@ let AuthService = AuthService_1 = class AuthService {
         }
         user.status = status;
         if (status !== auth_interface_1.UserStatus.ACTIVE) {
+            user.deactivationReason = reason;
             user.deactivatedAt = new Date();
             user.deactivatedBy = updatedBy._id;
-            user.deactivationReason = reason;
         }
         else {
             user.deactivationReason = undefined;
@@ -497,40 +507,45 @@ let AuthService = AuthService_1 = class AuthService {
     }
     async removeUser(userId, removeUserDto, removedBy) {
         const { reason, transferData, transferToUserId } = removeUserDto;
-        const user = await this.userModel.findOne({
-            _id: userId,
-            companyId: new mongoose_2.Types.ObjectId(removedBy.companyId),
-        });
-        if (!user) {
-            throw new common_1.BadRequestException('User not found');
-        }
-        if (removedBy.role !== auth_interface_1.UserRole.ADMIN &&
-            removedBy.role !== auth_interface_1.UserRole.COMPANY_ADMIN) {
-            throw new common_1.ForbiddenException('Insufficient permissions to remove user');
-        }
-        if (user._id?.toString() === removedBy._id?.toString()) {
-            throw new common_1.ForbiddenException('Cannot remove your own account');
-        }
-        if (transferData && transferToUserId) {
-            const transferToUser = await this.userModel.findOne({
-                _id: transferToUserId,
-                companyId: removedBy.companyId,
+        try {
+            const user = await this.userModel.findOne({
+                _id: userId,
+                companyId: new mongoose_2.Types.ObjectId(removedBy.companyId.toString()),
             });
-            if (!transferToUser) {
-                throw new common_1.BadRequestException('Transfer target user not found');
+            if (!user) {
+                throw new common_1.BadRequestException('User not found');
             }
-            this.logger.log(`Data transfer from ${user.email} to ${transferToUser.email} initiated`);
+            if (removedBy.role !== auth_interface_1.UserRole.ADMIN &&
+                removedBy.role !== auth_interface_1.UserRole.COMPANY_ADMIN) {
+                throw new common_1.ForbiddenException('Insufficient permissions to remove user');
+            }
+            if (user._id?.toString() === removedBy._id?.toString()) {
+                throw new common_1.ForbiddenException('Cannot remove your own account');
+            }
+            if (transferData && transferToUserId) {
+                const transferToUser = await this.userModel.findOne({
+                    _id: transferToUserId,
+                    companyId: removedBy.companyId,
+                });
+                if (!transferToUser) {
+                    throw new common_1.BadRequestException('Transfer target user not found');
+                }
+                this.logger.log(`Data transfer from ${user.email} to ${transferToUser.email} initiated`);
+            }
+            user.status = auth_interface_1.UserStatus.INACTIVE;
+            user.deactivationReason = reason || 'User removed from company';
+            user.deactivatedAt = new Date();
+            user.deactivatedBy = removedBy._id;
+            await user.save();
+            this.logger.log(`User ${user.email} removed by ${removedBy.email}`);
+            return {
+                message: 'User removed successfully',
+                transferInitiated: transferData && transferToUserId,
+            };
         }
-        user.status = auth_interface_1.UserStatus.INACTIVE;
-        user.deactivatedAt = new Date();
-        user.deactivatedBy = removedBy._id;
-        user.deactivationReason = reason;
-        await user.save();
-        this.logger.log(`User ${user.email} removed by ${removedBy.email}`);
-        return {
-            message: 'User removed successfully',
-            transferInitiated: !!(transferData && transferToUserId),
-        };
+        catch (error) {
+            console.error('Error removing user:', error);
+        }
     }
     async changeEmail(userId, changeEmailDto) {
         const { newEmail, otp } = changeEmailDto;
@@ -564,18 +579,23 @@ let AuthService = AuthService_1 = class AuthService {
     }
     async getCompanyUsers(companyId, page = 1, limit = 10, status) {
         const skip = (page - 1) * limit;
-        const filter = {
-            companyId: new mongoose_2.Types.ObjectId(companyId),
-        };
+        const filter = { companyId };
         if (status) {
             filter.status = status;
         }
         const [users, total] = await Promise.all([
-            this.userModel.find(filter).skip(skip).limit(limit).exec(),
+            this.userModel
+                .find(filter)
+                .populate('invitedBy', 'name email')
+                .populate('deactivatedBy', 'name email')
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit)
+                .exec(),
             this.userModel.countDocuments(filter),
         ]);
         return {
-            data: users.map((user) => this.sanitizeUser(user)),
+            users: users.map((user) => this.sanitizeUser(user)),
             pagination: {
                 page,
                 limit,
@@ -590,6 +610,129 @@ let AuthService = AuthService_1 = class AuthService {
             throw new common_1.BadRequestException('User not found');
         }
         return user;
+    }
+    async verifySignupOtp(verifySignupOtpDto) {
+        const { email, otp } = verifySignupOtpDto;
+        const user = await this.userModel.findOne({ email }).populate('companyId');
+        if (!user) {
+            throw new common_1.UnauthorizedException('Invalid credentials');
+        }
+        if (!user.otp || user.otp.verified) {
+            throw new common_1.BadRequestException('No valid OTP found');
+        }
+        if (this.validationService.isOtpExpired(user.otp.expiresAt)) {
+            throw new common_1.BadRequestException('OTP has expired');
+        }
+        if (user.otp.attempts >= this.configService.get('security.maxOtpAttempts')) {
+            throw new common_1.BadRequestException('Maximum OTP attempts exceeded');
+        }
+        if (user.otp.code !== otp) {
+            user.otp.attempts += 1;
+            await user.save();
+            throw new common_1.BadRequestException('Invalid OTP');
+        }
+        user.otp.verified = true;
+        user.status = auth_interface_1.UserStatus.ACTIVE;
+        user.emailVerified = true;
+        user.emailVerifiedAt = new Date();
+        user.lastLogin = new Date();
+        const company = user.companyId;
+        if (company && company.status === auth_interface_1.CompanyStatus.PENDING) {
+            company.status = auth_interface_1.CompanyStatus.ACTIVE;
+            await company.save();
+        }
+        await user.save();
+        const tokens = await this.generateTokens(user);
+        this.logger.log(`User verified and logged in: ${email}`);
+        return {
+            ...tokens,
+            user: this.sanitizeUser(user),
+            company: this.sanitizeCompany(company),
+            message: 'Account verified successfully. Welcome to Yukti Platform!',
+        };
+    }
+    async verifyToken(token) {
+        try {
+            const payload = this.jwtService.verify(token, {
+                secret: this.configService.get('jwt.accessSecret'),
+            });
+            const user = await this.userModel
+                .findById(payload.sub)
+                .populate('companyId');
+            if (!user) {
+                throw new common_1.UnauthorizedException('Invalid token - user not found');
+            }
+            if (user.status !== auth_interface_1.UserStatus.ACTIVE) {
+                throw new common_1.UnauthorizedException('User account is not active');
+            }
+            return {
+                valid: true,
+                user: this.sanitizeUser(user),
+                company: this.sanitizeCompany(user.companyId),
+                expiresAt: payload.exp ? new Date(payload.exp * 1000) : undefined,
+            };
+        }
+        catch (error) {
+            if (error instanceof common_1.UnauthorizedException) {
+                throw error;
+            }
+            return {
+                valid: false,
+                error: 'Invalid or expired token',
+            };
+        }
+    }
+    async resendSignupOtp(resendOtpDto, ip) {
+        const { email } = resendOtpDto;
+        const user = await this.userModel.findOne({ email });
+        if (!user) {
+            throw new common_1.BadRequestException('User not found');
+        }
+        if (user.status === auth_interface_1.UserStatus.ACTIVE && user.emailVerified) {
+            throw new common_1.BadRequestException('Account is already verified');
+        }
+        if (user.status === auth_interface_1.UserStatus.INACTIVE ||
+            user.status === auth_interface_1.UserStatus.SUSPENDED) {
+            throw new common_1.UnauthorizedException('Account is inactive');
+        }
+        const now = new Date();
+        const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+        if (user.lastOtpRequest && user.lastOtpRequest > oneHourAgo) {
+            if (user.otpRequestCount >= 5) {
+                throw new common_1.BadRequestException('Too many OTP requests. Please wait 1 hour before requesting again.');
+            }
+        }
+        else {
+            user.otpRequestCount = 0;
+        }
+        const otp = this.validationService.generateOtp();
+        const expiresAt = new Date();
+        expiresAt.setMinutes(expiresAt.getMinutes() +
+            Number(this.configService.get('security.otpExpiresInMinutes')));
+        user.otp = {
+            code: otp,
+            expiresAt,
+            attempts: 0,
+            verified: false,
+        };
+        user.lastOtpRequest = now;
+        user.otpRequestCount = (user.otpRequestCount || 0) + 1;
+        user.lastLoginIp = ip;
+        await user.save();
+        const company = await this.companyModel.findById(user.companyId);
+        const companyName = company?.name || 'Your Company';
+        try {
+            await this.emailService.sendWelcomeEmailWithOtp(email, user.name, companyName, otp);
+        }
+        catch (error) {
+            this.logger.error('Failed to resend signup OTP email', error);
+            throw new common_1.BadRequestException('Failed to send OTP. Please try again.');
+        }
+        this.logger.log(`Signup OTP resent to ${email}`);
+        return {
+            message: 'New verification OTP sent to your email',
+            otpSent: true,
+        };
     }
 };
 exports.AuthService = AuthService;

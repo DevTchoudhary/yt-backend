@@ -189,6 +189,39 @@ export class EmailService {
     }
   }
 
+  async sendWelcomeEmailWithOtp(
+    email: string,
+    name: string,
+    companyName: string,
+    otp: string,
+  ): Promise<void> {
+    // In development mode, just log the OTP instead of sending email
+    if (this.configService.get('NODE_ENV') === 'development') {
+      this.logger.log(
+        `🔐 Welcome OTP for ${email}: ${otp} (Development Mode - Not Sent via Email)`,
+      );
+      return;
+    }
+
+    try {
+      const mailOptions = {
+        from: String(this.configService.get('SMTP_FROM')),
+        to: email,
+        subject: 'Welcome to Yukti Platform - Verify Your Account',
+        html: this.getWelcomeEmailWithOtpTemplate(name, companyName, otp),
+      };
+
+      await this.transporter.sendMail(mailOptions);
+      this.logger.log(`Welcome email with OTP sent to ${email}`);
+    } catch (error: unknown) {
+      this.logger.error(
+        `Failed to send welcome email with OTP to ${email}`,
+        error instanceof Error ? error.message : error,
+      );
+      throw new Error('Failed to send welcome email with OTP');
+    }
+  }
+
   private getOtpEmailTemplate(otp: string, name?: string): string {
     return `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -299,6 +332,28 @@ export class EmailService {
         </div>
         <p>This OTP will expire in 10 minutes.</p>
         <p>If you didn't request this email change, please contact our support team immediately.</p>
+        <p>Best regards,<br>Yukti Team</p>
+      </div>
+    `;
+  }
+
+  private getWelcomeEmailWithOtpTemplate(
+    name: string,
+    companyName: string,
+    otp: string,
+  ): string {
+    return `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2>Welcome to Yukti Platform!</h2>
+        <p>Hello ${name},</p>
+        <p>Thank you for signing up with <strong>${companyName}</strong>!</p>
+        <p>To complete your registration and verify your email address, please use the verification code below:</p>
+        <div style="background-color: #f0f0f0; padding: 20px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 5px; margin: 20px 0; border-radius: 5px;">
+          ${otp}
+        </div>
+        <p>This verification code will expire in 10 minutes.</p>
+        <p>Once verified, you'll have access to our comprehensive SRE tools for infrastructure management, monitoring, and incident response.</p>
+        <p>If you didn't create this account, please ignore this email.</p>
         <p>Best regards,<br>Yukti Team</p>
       </div>
     `;

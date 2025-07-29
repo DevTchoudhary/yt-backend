@@ -41,7 +41,7 @@ __decorate([
     __metadata("design:type", String)
 ], Company.prototype, "alias", void 0);
 __decorate([
-    (0, mongoose_1.Prop)({ required: true, lowercase: true, trim: true }),
+    (0, mongoose_1.Prop)({ required: false, lowercase: true, trim: true }),
     __metadata("design:type", String)
 ], Company.prototype, "businessEmail", void 0);
 __decorate([

@@ -10,10 +10,12 @@ export declare class EmailService {
     sendInvitationEmail(email: string, name: string, inviterName: string, companyName: string, invitationToken: string, message?: string, otp?: string): Promise<void>;
     sendPasswordResetEmail(email: string, name: string, resetToken: string): Promise<void>;
     sendEmailChangeConfirmation(email: string, name: string, newEmail: string, otp: string): Promise<void>;
+    sendWelcomeEmailWithOtp(email: string, name: string, companyName: string, otp: string): Promise<void>;
     private getOtpEmailTemplate;
     private getWelcomeEmailTemplate;
     private getApprovalEmailTemplate;
     private getInvitationEmailTemplate;
     private getPasswordResetEmailTemplate;
     private getEmailChangeConfirmationTemplate;
+    private getWelcomeEmailWithOtpTemplate;
 }

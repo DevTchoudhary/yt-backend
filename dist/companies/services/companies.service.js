@@ -159,10 +159,17 @@ let CompaniesService = CompaniesService_1 = class CompaniesService {
             active: 0,
             inactive: 0,
         };
-        stats.forEach((stat) => {
-            result.total += stat.count;
-            result[stat._id] = stat.count;
-        });
+        for (const stat of stats) {
+            if (stat &&
+                typeof stat === 'object' &&
+                '_id' in stat &&
+                'count' in stat) {
+                const id = String(stat._id);
+                const count = Number(stat.count);
+                result.total += count;
+                result[id] = count;
+            }
+        }
         return result;
     }
     async getDashboardUrl(companyId) {

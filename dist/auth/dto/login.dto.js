@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ChangeEmailDto = exports.ResendOtpDto = exports.RefreshTokenDto = exports.VerifyOtpDto = exports.LoginDto = void 0;
+exports.VerifyTokenDto = exports.VerifySignupOtpDto = exports.ChangeEmailDto = exports.ResendOtpDto = exports.RefreshTokenDto = exports.VerifyOtpDto = exports.LoginDto = void 0;
 const class_validator_1 = require("class-validator");
 const class_transformer_1 = require("class-transformer");
 const swagger_1 = require("@nestjs/swagger");
@@ -83,4 +83,33 @@ __decorate([
     (0, class_validator_1.Length)(6, 6),
     __metadata("design:type", String)
 ], ChangeEmailDto.prototype, "otp", void 0);
+class VerifySignupOtpDto {
+    email;
+    otp;
+}
+exports.VerifySignupOtpDto = VerifySignupOtpDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: 'john@company.com' }),
+    (0, class_validator_1.IsEmail)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_transformer_1.Transform)(({ value }) => value?.toLowerCase().trim()),
+    __metadata("design:type", String)
+], VerifySignupOtpDto.prototype, "email", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: '123456' }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.Length)(6, 6),
+    __metadata("design:type", String)
+], VerifySignupOtpDto.prototype, "otp", void 0);
+class VerifyTokenDto {
+    token;
+}
+exports.VerifyTokenDto = VerifyTokenDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], VerifyTokenDto.prototype, "token", void 0);
 //# sourceMappingURL=login.dto.js.map

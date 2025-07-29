@@ -6,7 +6,8 @@ const config_1 = require("@nestjs/config");
 const swagger_1 = require("@nestjs/swagger");
 const app_module_1 = require("./app.module");
 const helmet_1 = require("helmet");
-const compression = require("compression");
+const compression_1 = require("compression");
+const cookieParser = require("cookie-parser");
 async function bootstrap() {
     const app = await core_1.NestFactory.create(app_module_1.AppModule, {
         logger: ['error', 'warn', 'log', 'debug', 'verbose'],
@@ -14,7 +15,10 @@ async function bootstrap() {
     const configService = app.get(config_1.ConfigService);
     const logger = new common_1.Logger('Bootstrap');
     app.use((0, helmet_1.default)());
-    app.use(compression());
+    if (typeof compression_1.default === 'function') {
+        app.use((0, compression_1.default)());
+    }
+    app.use(cookieParser());
     app.enableCors({
         origin: true,
         credentials: true,
@@ -48,15 +52,19 @@ async function bootstrap() {
         });
         logger.log('Swagger documentation available at /api/docs');
     }
-    const port = configService.get('port') || 3000;
-    const host = '0.0.0.0';
+    const port = Number(configService.get('port')) || 3000;
+    const host = String('0.0.0.0');
     await app.listen(port, host);
     logger.log(`🚀 Application is running on: http://${host}:${port}`);
     logger.log(`📚 API Documentation: http://${host}:${port}/api/docs`);
     logger.log(`🌍 Environment: ${configService.get('nodeEnv')}`);
 }
 bootstrap().catch((error) => {
-    console.error('Failed to start application:', error);
-    process.exit(1);
+    if (error instanceof Error) {
+        console.error('Failed to start application:', error.message);
+    }
+    else {
+        console.error('Failed to start application:', error);
+    }
 });
 //# sourceMappingURL=main.js.map

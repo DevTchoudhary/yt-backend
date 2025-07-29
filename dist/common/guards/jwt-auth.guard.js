@@ -31,10 +31,15 @@ let JwtAuthGuard = class JwtAuthGuard extends (0, passport_1.AuthGuard)('jwt') {
         return super.canActivate(context);
     }
     handleRequest(err, user) {
-        if (err || !user) {
-            throw err || new common_1.UnauthorizedException('Invalid token');
+        if (err) {
+            if (err instanceof Error)
+                throw err;
+            throw new Error('Unknown authentication error');
         }
-        return user;
+        if (user && typeof user === 'object' && 'id' in user) {
+            return user;
+        }
+        throw new Error('Unauthorized');
     }
 };
 exports.JwtAuthGuard = JwtAuthGuard;

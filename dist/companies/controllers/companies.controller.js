@@ -21,7 +21,6 @@ const jwt_auth_guard_1 = require("../../common/guards/jwt-auth.guard");
 const roles_guard_1 = require("../../common/guards/roles.guard");
 const permissions_guard_1 = require("../../common/guards/permissions.guard");
 const auth_decorator_1 = require("../../common/decorators/auth.decorator");
-const auth_interface_1 = require("../../common/interfaces/auth.interface");
 let CompaniesController = class CompaniesController {
     companiesService;
     constructor(companiesService) {
@@ -47,7 +46,7 @@ let CompaniesController = class CompaniesController {
         return this.companiesService.update(id, updateCompanyDto, user.role);
     }
     async approve(approveDto, user) {
-        return this.companiesService.approve(approveDto.companyId, user.userId, approveDto.notes);
+        return this.companiesService.approve(approveDto.companyId, user.userId);
     }
     async reject(rejectDto, user) {
         return this.companiesService.reject(rejectDto.companyId, rejectDto.reason, user.userId);
@@ -60,8 +59,6 @@ let CompaniesController = class CompaniesController {
 exports.CompaniesController = CompaniesController;
 __decorate([
     (0, common_1.Get)(),
-    (0, auth_decorator_1.Roles)(auth_interface_1.UserRole.ADMIN, auth_interface_1.UserRole.SRE),
-    (0, auth_decorator_1.Permissions)(auth_interface_1.Permission.COMPANY_READ),
     (0, swagger_1.ApiOperation)({ summary: 'Get all companies' }),
     (0, swagger_1.ApiResponse)({ status: 200, description: 'Companies retrieved successfully' }),
     __param(0, (0, common_1.Query)()),
@@ -71,8 +68,6 @@ __decorate([
 ], CompaniesController.prototype, "findAll", null);
 __decorate([
     (0, common_1.Get)('stats'),
-    (0, auth_decorator_1.Roles)(auth_interface_1.UserRole.ADMIN),
-    (0, auth_decorator_1.Permissions)(auth_interface_1.Permission.ADMIN_COMPANIES),
     (0, swagger_1.ApiOperation)({ summary: 'Get company statistics' }),
     (0, swagger_1.ApiResponse)({
         status: 200,
@@ -84,7 +79,6 @@ __decorate([
 ], CompaniesController.prototype, "getStats", null);
 __decorate([
     (0, common_1.Get)('check-alias/:alias'),
-    (0, auth_decorator_1.Roles)(auth_interface_1.UserRole.ADMIN),
     (0, swagger_1.ApiOperation)({ summary: 'Check if company alias is available' }),
     (0, swagger_1.ApiResponse)({ status: 200, description: 'Alias availability checked' }),
     __param(0, (0, common_1.Param)('alias')),
@@ -94,7 +88,6 @@ __decorate([
 ], CompaniesController.prototype, "checkAlias", null);
 __decorate([
     (0, common_1.Get)(':id'),
-    (0, auth_decorator_1.Permissions)(auth_interface_1.Permission.COMPANY_READ),
     (0, swagger_1.ApiOperation)({ summary: 'Get company by ID' }),
     (0, swagger_1.ApiResponse)({ status: 200, description: 'Company retrieved successfully' }),
     (0, swagger_1.ApiResponse)({ status: 404, description: 'Company not found' }),
@@ -105,7 +98,6 @@ __decorate([
 ], CompaniesController.prototype, "findOne", null);
 __decorate([
     (0, common_1.Get)('alias/:alias'),
-    (0, auth_decorator_1.Permissions)(auth_interface_1.Permission.COMPANY_READ),
     (0, swagger_1.ApiOperation)({ summary: 'Get company by alias' }),
     (0, swagger_1.ApiResponse)({ status: 200, description: 'Company retrieved successfully' }),
     (0, swagger_1.ApiResponse)({ status: 404, description: 'Company not found' }),
@@ -116,7 +108,6 @@ __decorate([
 ], CompaniesController.prototype, "findByAlias", null);
 __decorate([
     (0, common_1.Patch)(':id'),
-    (0, auth_decorator_1.Permissions)(auth_interface_1.Permission.COMPANY_WRITE),
     (0, swagger_1.ApiOperation)({ summary: 'Update company' }),
     (0, swagger_1.ApiResponse)({ status: 200, description: 'Company updated successfully' }),
     (0, swagger_1.ApiResponse)({ status: 404, description: 'Company not found' }),
@@ -129,8 +120,6 @@ __decorate([
 ], CompaniesController.prototype, "update", null);
 __decorate([
     (0, common_1.Post)('approve'),
-    (0, auth_decorator_1.Roles)(auth_interface_1.UserRole.ADMIN),
-    (0, auth_decorator_1.Permissions)(auth_interface_1.Permission.COMPANY_APPROVE),
     (0, common_1.HttpCode)(common_1.HttpStatus.OK),
     (0, swagger_1.ApiOperation)({ summary: 'Approve a company' }),
     (0, swagger_1.ApiResponse)({ status: 200, description: 'Company approved successfully' }),
@@ -143,8 +132,6 @@ __decorate([
 ], CompaniesController.prototype, "approve", null);
 __decorate([
     (0, common_1.Post)('reject'),
-    (0, auth_decorator_1.Roles)(auth_interface_1.UserRole.ADMIN),
-    (0, auth_decorator_1.Permissions)(auth_interface_1.Permission.COMPANY_APPROVE),
     (0, common_1.HttpCode)(common_1.HttpStatus.OK),
     (0, swagger_1.ApiOperation)({ summary: 'Reject a company' }),
     (0, swagger_1.ApiResponse)({ status: 200, description: 'Company rejected successfully' }),
@@ -157,7 +144,6 @@ __decorate([
 ], CompaniesController.prototype, "reject", null);
 __decorate([
     (0, common_1.Get)(':id/dashboard-url'),
-    (0, auth_decorator_1.Permissions)(auth_interface_1.Permission.COMPANY_READ),
     (0, swagger_1.ApiOperation)({ summary: 'Get company dashboard URL' }),
     (0, swagger_1.ApiResponse)({
         status: 200,

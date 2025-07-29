@@ -3,7 +3,7 @@ import { DashboardService } from '../services/dashboard.service';
 export declare class DashboardController {
     private readonly dashboardService;
     constructor(dashboardService: DashboardService);
-    getDashboard(user: RequestUser, companyId: string): Promise<{
+    getDashboard(user: RequestUser): Promise<{
         company: {
             id: string | undefined;
             name: string;
@@ -63,7 +63,7 @@ export declare class DashboardController {
             read: boolean;
         }[];
     }>;
-    getStats(user: RequestUser, companyId: string): Promise<{
+    getStats(user: RequestUser): Promise<{
         company: {
             status: import("../../common/interfaces/auth.interface").CompanyStatus;
             createdAt: Date | undefined;

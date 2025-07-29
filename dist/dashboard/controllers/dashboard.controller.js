@@ -25,14 +25,14 @@ let DashboardController = class DashboardController {
     constructor(dashboardService) {
         this.dashboardService = dashboardService;
     }
-    async getDashboard(user, companyId) {
-        return this.dashboardService.getDashboardData(user, companyId);
+    async getDashboard(user) {
+        return this.dashboardService.getDashboardData(user, user.companyId);
     }
     async getCompanyDashboard(alias, user) {
         return this.dashboardService.getCompanyDashboardByAlias(alias, user);
     }
-    async getStats(user, companyId) {
-        return this.dashboardService.getStats(user, companyId);
+    async getStats(user) {
+        return this.dashboardService.getStats(user, user.companyId);
     }
     getRecentActivity(user) {
         return this.dashboardService.getRecentActivity(user);
@@ -47,9 +47,8 @@ __decorate([
         description: 'Dashboard data retrieved successfully',
     }),
     __param(0, (0, auth_decorator_1.CurrentUser)()),
-    __param(1, (0, auth_decorator_1.CompanyId)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], DashboardController.prototype, "getDashboard", null);
 __decorate([
@@ -74,9 +73,8 @@ __decorate([
         description: 'Statistics retrieved successfully',
     }),
     __param(0, (0, auth_decorator_1.CurrentUser)()),
-    __param(1, (0, auth_decorator_1.CompanyId)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], DashboardController.prototype, "getStats", null);
 __decorate([

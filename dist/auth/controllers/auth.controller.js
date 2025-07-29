@@ -36,31 +36,65 @@ let AuthController = class AuthController {
     async login(loginDto) {
         return this.authService.login(loginDto);
     }
-    async verifyOtp(verifyOtpDto) {
-        return this.authService.verifyOtp(verifyOtpDto);
+    async verifyOtp(verifyOtpDto, response) {
+        const result = await this.authService.verifyOtp(verifyOtpDto);
+        response.cookie('accessToken', result.accessToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 15 * 60 * 1000,
+        });
+        response.cookie('refreshToken', result.refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 7 * 24 * 60 * 60 * 1000,
+        });
+        const { accessToken, refreshToken, ...responseWithoutTokens } = result;
+        return responseWithoutTokens;
     }
-    async refreshToken(refreshTokenDto) {
-        return this.authService.refreshToken(refreshTokenDto.refreshToken);
-    }
-    async getProfile(user) {
-        const fullUser = await this.authService.getUserById(user.userId);
-        if (!fullUser) {
-            throw new Error('User not found');
+    async refreshToken(request, response) {
+        const refreshToken = request.cookies
+            ?.refreshToken;
+        if (!refreshToken) {
+            throw new common_1.UnauthorizedException('Refresh token not found');
         }
-        const sanitizedUser = this.authService.sanitizeUser(fullUser);
-        if (!sanitizedUser) {
-            throw new Error('Failed to process user data');
-        }
-        return sanitizedUser;
+        const result = await this.authService.refreshToken(refreshToken);
+        response.cookie('accessToken', result.accessToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 15 * 60 * 1000,
+        });
+        response.cookie('refreshToken', result.refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 7 * 24 * 60 * 60 * 1000,
+        });
+        return { message: 'Tokens refreshed successfully' };
     }
-    logout() {
+    logout(response) {
+        response.clearCookie('accessToken');
+        response.clearCookie('refreshToken');
+        return { message: 'Logged out successfully' };
+    }
+    getProfile(user) {
         return {
-            message: 'Logged out successfully',
+            userId: user.userId,
+            email: user.email,
+            role: user.role,
+            companyId: user.companyId,
+            permissions: user.permissions,
         };
     }
     async resendOtp(resendOtpDto, req) {
         const ip = req.ip || req.socket.remoteAddress || 'unknown';
         return this.authService.resendOtp(resendOtpDto, ip);
+    }
+    async resendSignupOtp(resendOtpDto, req) {
+        const ip = req.ip || req.socket.remoteAddress || 'unknown';
+        return this.authService.resendSignupOtp(resendOtpDto, ip);
     }
     async inviteUser(inviteUserDto, user) {
         const currentUser = await this.authService.getUserById(user.userId);
@@ -72,17 +106,14 @@ let AuthController = class AuthController {
         for (const invitation of bulkInviteDto.invitations) {
             try {
                 const result = await this.authService.inviteUser(invitation, currentUser);
-                results.push({
-                    email: invitation.email,
-                    success: true,
-                    user: result.invitedUser,
-                });
+                results.push({ email: invitation.email, success: true, result });
             }
             catch (error) {
+                const errMsg = error instanceof Error ? error.message : 'Unknown error';
                 results.push({
                     email: invitation.email,
                     success: false,
-                    error: error instanceof Error ? error.message : String(error),
+                    error: errMsg,
                 });
             }
         }
@@ -97,15 +128,47 @@ let AuthController = class AuthController {
         const currentUser = await this.authService.getUserById(user.userId);
         return this.authService.resendInvitation(resendInvitationDto, currentUser);
     }
-    async acceptInvitation(acceptInvitationDto) {
-        return this.authService.acceptInvitation(acceptInvitationDto);
+    async acceptInvitation(acceptInvitationDto, response) {
+        const result = await this.authService.acceptInvitation(acceptInvitationDto);
+        response.cookie('accessToken', result.accessToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 15 * 60 * 1000,
+        });
+        response.cookie('refreshToken', result.refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 7 * 24 * 60 * 60 * 1000,
+        });
+        const { accessToken, refreshToken, ...responseWithoutTokens } = result;
+        return responseWithoutTokens;
+    }
+    async verifySignupOtp(verifySignupOtpDto, response) {
+        const result = await this.authService.verifySignupOtp(verifySignupOtpDto);
+        response.cookie('accessToken', result.accessToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 15 * 60 * 1000,
+        });
+        response.cookie('refreshToken', result.refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 7 * 24 * 60 * 60 * 1000,
+        });
+        const { accessToken, refreshToken, ...responseWithoutTokens } = result;
+        return responseWithoutTokens;
     }
     async getCompanyUsers(user, page = 1, limit = 10, status) {
-        return this.authService.getCompanyUsers(user.companyId, +page, +limit, status);
+        return this.authService.getCompanyUsers(user.companyId, Number(page), Number(limit), status);
     }
     async updateUser(userId, updateUserDto, user) {
         const currentUser = await this.authService.getUserById(user.userId);
-        return this.authService.updateUser(userId, updateUserDto, currentUser);
+        const result = await this.authService.updateUser(userId, updateUserDto, currentUser);
+        return result;
     }
     async updateUserStatus(userId, updateUserStatusDto, user) {
         const currentUser = await this.authService.getUserById(user.userId);
@@ -113,7 +176,8 @@ let AuthController = class AuthController {
     }
     async updateUserRole(userId, updateUserRoleDto, user) {
         const currentUser = await this.authService.getUserById(user.userId);
-        return this.authService.updateUser(userId, updateUserRoleDto, currentUser);
+        const result = await this.authService.updateUser(userId, updateUserRoleDto, currentUser);
+        return result;
     }
     async removeUser(userId, removeUserDto, user) {
         const currentUser = await this.authService.getUserById(user.userId);
@@ -128,45 +192,23 @@ let AuthController = class AuthController {
                 let result;
                 switch (action) {
                     case 'activate':
-                        result = (await this.authService.updateUserStatus(userId, { status: auth_interface_1.UserStatus.ACTIVE }, currentUser))?.user;
+                        result = await this.authService.updateUserStatus(userId, { status: auth_interface_1.UserStatus.ACTIVE }, currentUser);
                         break;
                     case 'deactivate':
-                        result = (await this.authService.updateUserStatus(userId, { status: auth_interface_1.UserStatus.INACTIVE, reason }, currentUser))?.user;
+                        result = await this.authService.updateUserStatus(userId, { status: auth_interface_1.UserStatus.INACTIVE, reason }, currentUser);
                         break;
                     case 'suspend':
-                        result = (await this.authService.updateUserStatus(userId, { status: auth_interface_1.UserStatus.SUSPENDED, reason }, currentUser))?.user;
+                        result = await this.authService.updateUserStatus(userId, { status: auth_interface_1.UserStatus.SUSPENDED, reason }, currentUser);
                         break;
                     case 'delete':
-                        await this.authService.removeUser(userId, { userId, reason }, currentUser);
-                        result = {
-                            id: userId,
-                            message: 'User removal process initiated',
-                        };
+                        result = await this.authService.removeUser(userId, { userId, reason }, currentUser);
                         break;
-                    default:
-                        throw new Error(`Invalid action: ${action}`);
                 }
-                if (result) {
-                    results.push({
-                        userId,
-                        success: true,
-                        user: result,
-                    });
-                }
-                else {
-                    results.push({
-                        userId,
-                        success: false,
-                        error: 'Action failed or returned no result',
-                    });
-                }
+                results.push({ userId, success: true, result: result ?? null });
             }
             catch (error) {
-                results.push({
-                    userId,
-                    success: false,
-                    error: error instanceof Error ? error.message : String(error),
-                });
+                const errMsg = error instanceof Error ? error.message : 'Unknown error';
+                results.push({ userId, success: false, error: errMsg });
             }
         }
         return {
@@ -177,7 +219,12 @@ let AuthController = class AuthController {
         };
     }
     async changeEmail(changeEmailDto, user) {
-        return this.authService.changeEmail(user.userId, changeEmailDto);
+        const result = await this.authService.changeEmail(user.userId, changeEmailDto);
+        return result;
+    }
+    async verifyToken(verifyTokenDto) {
+        const result = await this.authService.verifyToken(verifyTokenDto.token);
+        return result;
     }
 };
 exports.AuthController = AuthController;
@@ -228,8 +275,9 @@ __decorate([
     (0, swagger_1.ApiResponse)({ status: 400, description: 'Invalid OTP' }),
     (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
     __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Res)({ passthrough: true })),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [login_dto_1.VerifyOtpDto]),
+    __metadata("design:paramtypes", [login_dto_1.VerifyOtpDto, Object]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "verifyOtp", null);
 __decorate([
@@ -243,11 +291,26 @@ __decorate([
         type: auth_response_dto_1.AuthResponseDto,
     }),
     (0, swagger_1.ApiResponse)({ status: 401, description: 'Invalid refresh token' }),
-    __param(0, (0, common_1.Body)()),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Res)({ passthrough: true })),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [login_dto_1.RefreshTokenDto]),
+    __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "refreshToken", null);
+__decorate([
+    (0, common_1.Post)('logout'),
+    (0, auth_decorator_1.Public)(),
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    (0, swagger_1.ApiOperation)({ summary: 'Logout user and clear tokens' }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: 'Logged out successfully',
+    }),
+    __param(0, (0, common_1.Res)({ passthrough: true })),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], AuthController.prototype, "logout", null);
 __decorate([
     (0, common_1.Get)('me'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
@@ -262,19 +325,8 @@ __decorate([
     __param(0, (0, auth_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
-    __metadata("design:returntype", Promise)
+    __metadata("design:returntype", void 0)
 ], AuthController.prototype, "getProfile", null);
-__decorate([
-    (0, common_1.Post)('logout'),
-    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
-    (0, swagger_1.ApiBearerAuth)(),
-    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
-    (0, swagger_1.ApiOperation)({ summary: 'Logout user' }),
-    (0, swagger_1.ApiResponse)({ status: 200, description: 'Logged out successfully' }),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", Object)
-], AuthController.prototype, "logout", null);
 __decorate([
     (0, common_1.Post)('resend-otp'),
     (0, auth_decorator_1.Public)(),
@@ -293,6 +345,24 @@ __decorate([
     __metadata("design:paramtypes", [login_dto_1.ResendOtpDto, Object]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "resendOtp", null);
+__decorate([
+    (0, common_1.Post)('resend-signup-otp'),
+    (0, auth_decorator_1.Public)(),
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    (0, swagger_1.ApiOperation)({ summary: 'Resend signup verification OTP' }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: 'OTP resent successfully',
+        type: auth_response_dto_1.LoginResponseDto,
+    }),
+    (0, swagger_1.ApiResponse)({ status: 400, description: 'Bad request' }),
+    (0, swagger_1.ApiResponse)({ status: 429, description: 'Too many requests' }),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [login_dto_1.ResendOtpDto, Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "resendSignupOtp", null);
 __decorate([
     (0, common_1.Post)('invite'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
@@ -345,10 +415,29 @@ __decorate([
     }),
     (0, swagger_1.ApiResponse)({ status: 400, description: 'Invalid invitation or OTP' }),
     __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Res)({ passthrough: true })),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [invitation_dto_1.AcceptInvitationDto]),
+    __metadata("design:paramtypes", [invitation_dto_1.AcceptInvitationDto, Object]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "acceptInvitation", null);
+__decorate([
+    (0, auth_decorator_1.Public)(),
+    (0, common_1.Post)('verify-signup'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    (0, swagger_1.ApiOperation)({ summary: 'Verify signup OTP and activate account' }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: 'Account verified and activated successfully',
+        type: auth_response_dto_1.AuthResponseDto,
+    }),
+    (0, swagger_1.ApiResponse)({ status: 400, description: 'Invalid OTP' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Res)({ passthrough: true })),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [login_dto_1.VerifySignupOtpDto, Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "verifySignupOtp", null);
 __decorate([
     (0, common_1.Get)('users'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
@@ -445,6 +534,22 @@ __decorate([
     __metadata("design:paramtypes", [login_dto_1.ChangeEmailDto, Object]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "changeEmail", null);
+__decorate([
+    (0, auth_decorator_1.Public)(),
+    (0, common_1.Post)('verify-token'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    (0, swagger_1.ApiOperation)({ summary: 'Verify JWT access token' }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: 'Token verification result',
+        type: auth_response_dto_1.TokenVerificationResponseDto,
+    }),
+    (0, swagger_1.ApiResponse)({ status: 400, description: 'Bad request' }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [login_dto_1.VerifyTokenDto]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "verifyToken", null);
 exports.AuthController = AuthController = __decorate([
     (0, swagger_1.ApiTags)('Authentication'),
     (0, common_1.Controller)('auth'),

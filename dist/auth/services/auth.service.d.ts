@@ -6,13 +6,10 @@ import { CompanyDocument } from '../../companies/entities/company.entity';
 import { EmailService } from '../../common/services/email.service';
 import { ValidationService } from '../../common/services/validation.service';
 import { SignupDto } from '../dto/signup.dto';
-import { LoginDto, VerifyOtpDto, ResendOtpDto, ChangeEmailDto } from '../dto/login.dto';
+import { LoginDto, VerifyOtpDto, ResendOtpDto, ChangeEmailDto, VerifySignupOtpDto } from '../dto/login.dto';
 import { InviteUserDto, AcceptInvitationDto, ResendInvitationDto } from '../dto/invitation.dto';
 import { UpdateUserDto, UpdateUserStatusDto, RemoveUserDto } from '../dto/user-management.dto';
-import { UserRole, UserStatus } from '../../common/interfaces/auth.interface';
-import { AuthResponseDto } from '../dto/auth-response.dto';
-import { UserResponseDto } from '../../users/dto/user-response.dto';
-import { CompanyResponseDto } from '../../companies/dto/company-response.dto';
+import { UserRole, UserStatus, AuthTokens, SanitizedUser, SanitizedCompany } from '../../common/interfaces/auth.interface';
 export declare class AuthService {
     private userModel;
     private companyModel;
@@ -26,7 +23,8 @@ export declare class AuthService {
         message: string;
         userId: string;
         companyId: string;
-        requiresApproval: boolean;
+        otpSent: boolean;
+        requiresVerification: boolean;
     }>;
     login(loginDto: LoginDto, ip?: string, userAgent?: string): Promise<{
         message: string;
@@ -37,15 +35,15 @@ export declare class AuthService {
         otpSent: boolean;
     }>;
     verifyOtp(verifyOtpDto: VerifyOtpDto): Promise<{
-        user: UserResponseDto;
-        company: any;
+        user: SanitizedUser;
+        company: SanitizedCompany | null;
         accessToken: string;
         refreshToken: string;
     }>;
-    refreshToken(refreshToken: string): Promise<AuthResponseDto>;
+    refreshToken(refreshToken: string): Promise<AuthTokens>;
     private generateTokens;
-    sanitizeUser(user: UserDocument): UserResponseDto;
-    sanitizeCompany(company: CompanyDocument | null): CompanyResponseDto | null;
+    private sanitizeUser;
+    private sanitizeCompany;
     inviteUser(inviteUserDto: InviteUserDto, invitedBy: UserDocument): Promise<{
         message: string;
         invitedUser: {
@@ -61,30 +59,30 @@ export declare class AuthService {
         message: string;
     }>;
     acceptInvitation(acceptInvitationDto: AcceptInvitationDto): Promise<{
-        user: UserResponseDto;
-        company: any;
+        user: SanitizedUser;
+        company: SanitizedCompany | null;
         message: string;
         accessToken: string;
         refreshToken: string;
     }>;
     updateUser(userId: string, updateUserDto: UpdateUserDto, updatedBy: UserDocument): Promise<{
         message: string;
-        user: UserResponseDto;
+        user: SanitizedUser;
     }>;
     updateUserStatus(userId: string, updateUserStatusDto: UpdateUserStatusDto, updatedBy: UserDocument): Promise<{
         message: string;
-        user: UserResponseDto;
+        user: SanitizedUser;
     }>;
     removeUser(userId: string, removeUserDto: RemoveUserDto, removedBy: UserDocument): Promise<{
         message: string;
-        transferInitiated: boolean;
-    }>;
+        transferInitiated: string | false | undefined;
+    } | undefined>;
     changeEmail(userId: string, changeEmailDto: ChangeEmailDto): Promise<{
         message: string;
-        user: UserResponseDto;
+        user: SanitizedUser;
     }>;
     getCompanyUsers(companyId: string, page?: number, limit?: number, status?: UserStatus): Promise<{
-        data: UserResponseDto[];
+        users: SanitizedUser[];
         pagination: {
             page: number;
             limit: number;
@@ -93,4 +91,28 @@ export declare class AuthService {
         };
     }>;
     getUserById(userId: string): Promise<UserDocument>;
+    verifySignupOtp(verifySignupOtpDto: VerifySignupOtpDto): Promise<{
+        user: SanitizedUser;
+        company: SanitizedCompany | null;
+        message: string;
+        accessToken: string;
+        refreshToken: string;
+    }>;
+    verifyToken(token: string): Promise<{
+        valid: boolean;
+        user: SanitizedUser;
+        company: SanitizedCompany | null;
+        expiresAt: Date | undefined;
+        error?: undefined;
+    } | {
+        valid: boolean;
+        error: string;
+        user?: undefined;
+        company?: undefined;
+        expiresAt?: undefined;
+    }>;
+    resendSignupOtp(resendOtpDto: ResendOtpDto, ip?: string): Promise<{
+        message: string;
+        otpSent: boolean;
+    }>;
 }

@@ -23,6 +23,7 @@ import {
   VerifyOtpDto,
   ResendOtpDto,
   ChangeEmailDto,
+  VerifySignupOtpDto,
 } from '../dto/login.dto';
 import {
   InviteUserDto,
@@ -151,20 +152,46 @@ export class AuthService {
 
     const savedUser = await user.save();
 
-    // Send welcome email
+    // Generate and send OTP for email verification
+    const otp = this.validationService.generateOtp();
+    const expiresAt = new Date();
+    expiresAt.setMinutes(
+      expiresAt.getMinutes() +
+        Number(this.configService.get('security.otpExpiresInMinutes')),
+    );
+
+    savedUser.otp = {
+      code: otp,
+      expiresAt,
+      attempts: 0,
+      verified: false,
+    };
+    savedUser.lastOtpRequest = new Date();
+    savedUser.otpRequestCount = 1;
+
+    await savedUser.save();
+
+    // Send welcome email with OTP
     try {
-      await this.emailService.sendWelcomeEmail(email, name, companyName);
+      await this.emailService.sendWelcomeEmailWithOtp(
+        email,
+        name,
+        companyName,
+        otp,
+      );
     } catch (error) {
-      this.logger.error('Failed to send welcome email', error);
+      this.logger.error('Failed to send welcome email with OTP', error);
     }
 
     this.logger.log(`New user signup: ${email} for company: ${companyName}`);
 
     return {
-      message: 'Signup successful. Your account is pending approval.',
+      message:
+        'Signup successful. Please check your email for verification OTP.',
       userId: savedUser._id?.toString() || '',
       companyId: savedCompany._id?.toString() || '',
-      requiresApproval: true,
+      otpSent: true,
+      requiresVerification: true,
     };
   }
 
@@ -892,5 +919,179 @@ export class AuthService {
       throw new BadRequestException('User not found');
     }
     return user;
+  }
+
+  async verifySignupOtp(verifySignupOtpDto: VerifySignupOtpDto) {
+    const { email, otp } = verifySignupOtpDto;
+
+    const user = await this.userModel.findOne({ email }).populate('companyId');
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (!user.otp || user.otp.verified) {
+      throw new BadRequestException('No valid OTP found');
+    }
+
+    if (this.validationService.isOtpExpired(user.otp.expiresAt)) {
+      throw new BadRequestException('OTP has expired');
+    }
+
+    if (
+      user.otp.attempts >= this.configService.get('security.maxOtpAttempts')
+    ) {
+      throw new BadRequestException('Maximum OTP attempts exceeded');
+    }
+
+    if (user.otp.code !== otp) {
+      user.otp.attempts += 1;
+      await user.save();
+      throw new BadRequestException('Invalid OTP');
+    }
+
+    // Mark OTP as verified and activate account
+    user.otp.verified = true;
+    user.status = UserStatus.ACTIVE;
+    user.emailVerified = true;
+    user.emailVerifiedAt = new Date();
+    user.lastLogin = new Date();
+
+    // Activate company as well
+    const company = user.companyId as unknown as CompanyDocument;
+    if (company && company.status === CompanyStatus.PENDING) {
+      company.status = CompanyStatus.ACTIVE;
+      await company.save();
+    }
+
+    await user.save();
+
+    // Generate tokens
+    const tokens = await this.generateTokens(user);
+
+    this.logger.log(`User verified and logged in: ${email}`);
+
+    return {
+      ...tokens,
+      user: this.sanitizeUser(user),
+      company: this.sanitizeCompany(company),
+      message: 'Account verified successfully. Welcome to Yukti Platform!',
+    };
+  }
+
+  async verifyToken(token: string) {
+    try {
+      const payload = this.jwtService.verify(token, {
+        secret: this.configService.get('jwt.accessSecret'),
+      }) as unknown as JwtPayload;
+
+      const user = await this.userModel
+        .findById(payload.sub)
+        .populate('companyId');
+
+      if (!user) {
+        throw new UnauthorizedException('Invalid token - user not found');
+      }
+
+      if (user.status !== UserStatus.ACTIVE) {
+        throw new UnauthorizedException('User account is not active');
+      }
+
+      return {
+        valid: true,
+        user: this.sanitizeUser(user),
+        company: this.sanitizeCompany(
+          user.companyId as unknown as CompanyDocument,
+        ),
+        expiresAt: payload.exp ? new Date(payload.exp * 1000) : undefined,
+      };
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+
+      return {
+        valid: false,
+        error: 'Invalid or expired token',
+      };
+    }
+  }
+
+  async resendSignupOtp(resendOtpDto: ResendOtpDto, ip?: string) {
+    const { email } = resendOtpDto;
+
+    const user = await this.userModel.findOne({ email });
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    if (user.status === UserStatus.ACTIVE && user.emailVerified) {
+      throw new BadRequestException('Account is already verified');
+    }
+
+    if (
+      user.status === UserStatus.INACTIVE ||
+      user.status === UserStatus.SUSPENDED
+    ) {
+      throw new UnauthorizedException('Account is inactive');
+    }
+
+    // Check rate limiting (max 5 resend requests per hour)
+    const now = new Date();
+    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+
+    if (user.lastOtpRequest && user.lastOtpRequest > oneHourAgo) {
+      if (user.otpRequestCount >= 5) {
+        throw new BadRequestException(
+          'Too many OTP requests. Please wait 1 hour before requesting again.',
+        );
+      }
+    } else {
+      user.otpRequestCount = 0;
+    }
+
+    // Generate new OTP
+    const otp = this.validationService.generateOtp();
+    const expiresAt = new Date();
+    expiresAt.setMinutes(
+      expiresAt.getMinutes() +
+        Number(this.configService.get('security.otpExpiresInMinutes')),
+    );
+
+    user.otp = {
+      code: otp,
+      expiresAt,
+      attempts: 0,
+      verified: false,
+    };
+
+    user.lastOtpRequest = now;
+    user.otpRequestCount = (user.otpRequestCount || 0) + 1;
+    user.lastLoginIp = ip;
+
+    await user.save();
+
+    // Get company name for email
+    const company = await this.companyModel.findById(user.companyId);
+    const companyName = company?.name || 'Your Company';
+
+    // Send OTP with welcome message
+    try {
+      await this.emailService.sendWelcomeEmailWithOtp(
+        email,
+        user.name,
+        companyName,
+        otp,
+      );
+    } catch (error) {
+      this.logger.error('Failed to resend signup OTP email', error);
+      throw new BadRequestException('Failed to send OTP. Please try again.');
+    }
+
+    this.logger.log(`Signup OTP resent to ${email}`);
+
+    return {
+      message: 'New verification OTP sent to your email',
+      otpSent: true,
+    };
   }
 }

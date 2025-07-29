@@ -52,3 +52,24 @@ export class ChangeEmailDto {
   @Length(6, 6)
   otp: string;
 }
+
+export class VerifySignupOtpDto {
+  @ApiProperty({ example: 'john@company.com' })
+  @IsEmail()
+  @IsNotEmpty()
+  @Transform(({ value }: { value: string }) => value?.toLowerCase().trim())
+  email: string;
+
+  @ApiProperty({ example: '123456' })
+  @IsString()
+  @IsNotEmpty()
+  @Length(6, 6)
+  otp: string;
+}
+
+export class VerifyTokenDto {
+  @ApiProperty({ example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' })
+  @IsString()
+  @IsNotEmpty()
+  token: string;
+}

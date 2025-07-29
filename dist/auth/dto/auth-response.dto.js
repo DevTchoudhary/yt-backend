@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SignupResponseDto = exports.LoginResponseDto = exports.AuthResponseDto = exports.CompanyResponseDto = exports.UserResponseDto = void 0;
+exports.TokenVerificationResponseDto = exports.SignupResponseDto = exports.LoginResponseDto = exports.AuthResponseDto = exports.CompanyResponseDto = exports.UserResponseDto = void 0;
 const swagger_1 = require("@nestjs/swagger");
 const auth_interface_1 = require("../../common/interfaces/auth.interface");
 class UserResponseDto {
@@ -49,7 +49,7 @@ __decorate([
     __metadata("design:type", String)
 ], UserResponseDto.prototype, "companyId", void 0);
 __decorate([
-    (0, swagger_1.ApiProperty)(),
+    (0, swagger_1.ApiProperty)({ required: false }),
     __metadata("design:type", String)
 ], UserResponseDto.prototype, "phone", void 0);
 __decorate([
@@ -73,11 +73,11 @@ __decorate([
     __metadata("design:type", Date)
 ], UserResponseDto.prototype, "lastLogin", void 0);
 __decorate([
-    (0, swagger_1.ApiProperty)(),
+    (0, swagger_1.ApiProperty)({ required: false }),
     __metadata("design:type", Date)
 ], UserResponseDto.prototype, "createdAt", void 0);
 __decorate([
-    (0, swagger_1.ApiProperty)(),
+    (0, swagger_1.ApiProperty)({ required: false }),
     __metadata("design:type", Date)
 ], UserResponseDto.prototype, "updatedAt", void 0);
 class CompanyResponseDto {
@@ -122,15 +122,15 @@ __decorate([
     __metadata("design:type", Boolean)
 ], CompanyResponseDto.prototype, "onboardingCompleted", void 0);
 __decorate([
-    (0, swagger_1.ApiProperty)(),
+    (0, swagger_1.ApiProperty)({ required: false }),
     __metadata("design:type", String)
 ], CompanyResponseDto.prototype, "dashboardUrl", void 0);
 __decorate([
-    (0, swagger_1.ApiProperty)(),
+    (0, swagger_1.ApiProperty)({ required: false }),
     __metadata("design:type", Date)
 ], CompanyResponseDto.prototype, "createdAt", void 0);
 __decorate([
-    (0, swagger_1.ApiProperty)(),
+    (0, swagger_1.ApiProperty)({ required: false }),
     __metadata("design:type", Date)
 ], CompanyResponseDto.prototype, "updatedAt", void 0);
 class AuthResponseDto {
@@ -153,8 +153,8 @@ __decorate([
     __metadata("design:type", UserResponseDto)
 ], AuthResponseDto.prototype, "user", void 0);
 __decorate([
-    (0, swagger_1.ApiProperty)({ type: CompanyResponseDto }),
-    __metadata("design:type", CompanyResponseDto)
+    (0, swagger_1.ApiProperty)({ type: CompanyResponseDto, required: false }),
+    __metadata("design:type", Object)
 ], AuthResponseDto.prototype, "company", void 0);
 class LoginResponseDto {
     message;
@@ -173,7 +173,8 @@ class SignupResponseDto {
     message;
     userId;
     companyId;
-    requiresApproval;
+    otpSent;
+    requiresVerification;
 }
 exports.SignupResponseDto = SignupResponseDto;
 __decorate([
@@ -191,5 +192,37 @@ __decorate([
 __decorate([
     (0, swagger_1.ApiProperty)(),
     __metadata("design:type", Boolean)
-], SignupResponseDto.prototype, "requiresApproval", void 0);
+], SignupResponseDto.prototype, "otpSent", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)(),
+    __metadata("design:type", Boolean)
+], SignupResponseDto.prototype, "requiresVerification", void 0);
+class TokenVerificationResponseDto {
+    valid;
+    user;
+    company;
+    expiresAt;
+    error;
+}
+exports.TokenVerificationResponseDto = TokenVerificationResponseDto;
+__decorate([
+    (0, swagger_1.ApiProperty)(),
+    __metadata("design:type", Boolean)
+], TokenVerificationResponseDto.prototype, "valid", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ type: UserResponseDto, required: false }),
+    __metadata("design:type", UserResponseDto)
+], TokenVerificationResponseDto.prototype, "user", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ type: CompanyResponseDto, required: false }),
+    __metadata("design:type", CompanyResponseDto)
+], TokenVerificationResponseDto.prototype, "company", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    __metadata("design:type", Date)
+], TokenVerificationResponseDto.prototype, "expiresAt", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    __metadata("design:type", String)
+], TokenVerificationResponseDto.prototype, "error", void 0);
 //# sourceMappingURL=auth-response.dto.js.map

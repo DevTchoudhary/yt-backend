@@ -111,5 +111,25 @@ export class SignupResponseDto {
   companyId: string;
 
   @ApiProperty()
-  requiresApproval: boolean;
+  otpSent: boolean;
+
+  @ApiProperty()
+  requiresVerification: boolean;
+}
+
+export class TokenVerificationResponseDto {
+  @ApiProperty()
+  valid: boolean;
+
+  @ApiProperty({ type: UserResponseDto, required: false })
+  user?: UserResponseDto;
+
+  @ApiProperty({ type: CompanyResponseDto, required: false })
+  company?: CompanyResponseDto;
+
+  @ApiProperty({ required: false })
+  expiresAt?: Date;
+
+  @ApiProperty({ required: false })
+  error?: string;
 }

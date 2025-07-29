@@ -31,9 +31,13 @@ let EmailService = EmailService_1 = class EmailService {
         });
     }
     async sendOtpEmail(email, otp, name) {
+        if (this.configService.get('NODE_ENV') === 'development') {
+            this.logger.log(`🔐 OTP for ${email}: ${otp} (Development Mode - Not Sent via Email)`);
+            return;
+        }
         try {
             const mailOptions = {
-                from: this.configService.get('SMTP_FROM'),
+                from: String(this.configService.get('SMTP_FROM')),
                 to: email,
                 subject: 'Your OTP for Yukti Platform',
                 html: this.getOtpEmailTemplate(otp, name),
@@ -42,14 +46,14 @@ let EmailService = EmailService_1 = class EmailService {
             this.logger.log(`OTP email sent to ${email}`);
         }
         catch (error) {
-            this.logger.error(`Failed to send OTP email to ${email}`, error);
-            throw error;
+            this.logger.error(`Failed to send OTP email to ${email}`, error instanceof Error ? error.message : error);
+            throw new Error('Failed to send OTP email');
         }
     }
     async sendWelcomeEmail(email, name, companyName) {
         try {
             const mailOptions = {
-                from: this.configService.get('SMTP_FROM'),
+                from: String(this.configService.get('SMTP_FROM')),
                 to: email,
                 subject: 'Welcome to Yukti Platform',
                 html: this.getWelcomeEmailTemplate(name, companyName),
@@ -58,14 +62,14 @@ let EmailService = EmailService_1 = class EmailService {
             this.logger.log(`Welcome email sent to ${email}`);
         }
         catch (error) {
-            this.logger.error(`Failed to send welcome email to ${email}`, error);
-            throw error;
+            this.logger.error(`Failed to send welcome email to ${email}`, error instanceof Error ? error.message : error);
+            throw new Error('Failed to send welcome email');
         }
     }
     async sendCompanyApprovalEmail(email, name, companyName, dashboardUrl) {
         try {
             const mailOptions = {
-                from: this.configService.get('SMTP_FROM'),
+                from: String(this.configService.get('SMTP_FROM')),
                 to: email,
                 subject: 'Company Approved - Access Your Dashboard',
                 html: this.getApprovalEmailTemplate(name, companyName, dashboardUrl),
@@ -74,15 +78,15 @@ let EmailService = EmailService_1 = class EmailService {
             this.logger.log(`Approval email sent to ${email}`);
         }
         catch (error) {
-            this.logger.error(`Failed to send approval email to ${email}`, error);
-            throw error;
+            this.logger.error(`Failed to send approval email to ${email}`, error instanceof Error ? error.message : error);
+            throw new Error('Failed to send approval email');
         }
     }
     async sendInvitationEmail(email, name, inviterName, companyName, invitationToken, message, otp) {
         try {
             const invitationUrl = `${this.configService.get('FRONTEND_URL', 'http://localhost:3000')}/accept-invitation?token=${invitationToken}`;
             const mailOptions = {
-                from: this.configService.get('SMTP_FROM'),
+                from: String(this.configService.get('SMTP_FROM')),
                 to: email,
                 subject: `Invitation to join ${companyName} on Yukti Platform`,
                 html: this.getInvitationEmailTemplate(name, inviterName, companyName, invitationUrl, message, otp),
@@ -91,15 +95,15 @@ let EmailService = EmailService_1 = class EmailService {
             this.logger.log(`Invitation email sent to ${email}`);
         }
         catch (error) {
-            this.logger.error(`Failed to send invitation email to ${email}`, error);
-            throw error;
+            this.logger.error(`Failed to send invitation email to ${email}`, error instanceof Error ? error.message : error);
+            throw new Error('Failed to send invitation email');
         }
     }
     async sendPasswordResetEmail(email, name, resetToken) {
         try {
             const resetUrl = `${this.configService.get('FRONTEND_URL', 'http://localhost:3000')}/reset-password?token=${resetToken}`;
             const mailOptions = {
-                from: this.configService.get('SMTP_FROM'),
+                from: String(this.configService.get('SMTP_FROM')),
                 to: email,
                 subject: 'Password Reset Request - Yukti Platform',
                 html: this.getPasswordResetEmailTemplate(name, resetUrl),
@@ -108,14 +112,14 @@ let EmailService = EmailService_1 = class EmailService {
             this.logger.log(`Password reset email sent to ${email}`);
         }
         catch (error) {
-            this.logger.error(`Failed to send password reset email to ${email}`, error);
-            throw error;
+            this.logger.error(`Failed to send password reset email to ${email}`, error instanceof Error ? error.message : error);
+            throw new Error('Failed to send password reset email');
         }
     }
     async sendEmailChangeConfirmation(email, name, newEmail, otp) {
         try {
             const mailOptions = {
-                from: this.configService.get('SMTP_FROM'),
+                from: String(this.configService.get('SMTP_FROM')),
                 to: newEmail,
                 subject: 'Confirm Email Change - Yukti Platform',
                 html: this.getEmailChangeConfirmationTemplate(name, email, newEmail, otp),
@@ -124,8 +128,28 @@ let EmailService = EmailService_1 = class EmailService {
             this.logger.log(`Email change confirmation sent to ${newEmail}`);
         }
         catch (error) {
-            this.logger.error(`Failed to send email change confirmation to ${newEmail}`, error);
-            throw error;
+            this.logger.error(`Failed to send email change confirmation to ${newEmail}`, error instanceof Error ? error.message : error);
+            throw new Error('Failed to send email change confirmation');
+        }
+    }
+    async sendWelcomeEmailWithOtp(email, name, companyName, otp) {
+        if (this.configService.get('NODE_ENV') === 'development') {
+            this.logger.log(`🔐 Welcome OTP for ${email}: ${otp} (Development Mode - Not Sent via Email)`);
+            return;
+        }
+        try {
+            const mailOptions = {
+                from: String(this.configService.get('SMTP_FROM')),
+                to: email,
+                subject: 'Welcome to Yukti Platform - Verify Your Account',
+                html: this.getWelcomeEmailWithOtpTemplate(name, companyName, otp),
+            };
+            await this.transporter.sendMail(mailOptions);
+            this.logger.log(`Welcome email with OTP sent to ${email}`);
+        }
+        catch (error) {
+            this.logger.error(`Failed to send welcome email with OTP to ${email}`, error instanceof Error ? error.message : error);
+            throw new Error('Failed to send welcome email with OTP');
         }
     }
     getOtpEmailTemplate(otp, name) {
@@ -214,6 +238,23 @@ let EmailService = EmailService_1 = class EmailService {
         </div>
         <p>This OTP will expire in 10 minutes.</p>
         <p>If you didn't request this email change, please contact our support team immediately.</p>
+        <p>Best regards,<br>Yukti Team</p>
+      </div>
+    `;
+    }
+    getWelcomeEmailWithOtpTemplate(name, companyName, otp) {
+        return `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2>Welcome to Yukti Platform!</h2>
+        <p>Hello ${name},</p>
+        <p>Thank you for signing up with <strong>${companyName}</strong>!</p>
+        <p>To complete your registration and verify your email address, please use the verification code below:</p>
+        <div style="background-color: #f0f0f0; padding: 20px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 5px; margin: 20px 0; border-radius: 5px;">
+          ${otp}
+        </div>
+        <p>This verification code will expire in 10 minutes.</p>
+        <p>Once verified, you'll have access to our comprehensive SRE tools for infrastructure management, monitoring, and incident response.</p>
+        <p>If you didn't create this account, please ignore this email.</p>
         <p>Best regards,<br>Yukti Team</p>
       </div>
     `;

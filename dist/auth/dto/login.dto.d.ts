@@ -15,3 +15,10 @@ export declare class ChangeEmailDto {
     newEmail: string;
     otp: string;
 }
+export declare class VerifySignupOtpDto {
+    email: string;
+    otp: string;
+}
+export declare class VerifyTokenDto {
+    token: string;
+}

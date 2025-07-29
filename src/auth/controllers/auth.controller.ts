@@ -29,6 +29,8 @@ import {
   VerifyOtpDto,
   ResendOtpDto,
   ChangeEmailDto,
+  VerifySignupOtpDto,
+  VerifyTokenDto,
 } from '../dto/login.dto';
 import {
   InviteUserDto,
@@ -48,6 +50,7 @@ import {
   LoginResponseDto,
   SignupResponseDto,
   UserResponseDto,
+  TokenVerificationResponseDto,
 } from '../dto/auth-response.dto';
 import { Public, CurrentUser } from '../../common/decorators/auth.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -220,6 +223,25 @@ export class AuthController {
     return this.authService.resendOtp(resendOtpDto, ip);
   }
 
+  @Post('resend-signup-otp')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Resend signup verification OTP' })
+  @ApiResponse({
+    status: 200,
+    description: 'OTP resent successfully',
+    type: LoginResponseDto,
+  })
+  @ApiResponse({ status: 400, description: 'Bad request' })
+  @ApiResponse({ status: 429, description: 'Too many requests' })
+  async resendSignupOtp(
+    @Body() resendOtpDto: ResendOtpDto,
+    @Req() req: Request,
+  ) {
+    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    return this.authService.resendSignupOtp(resendOtpDto, ip);
+  }
+
   // User Invitation Endpoints
   @Post('invite')
   @UseGuards(JwtAuthGuard)
@@ -308,6 +330,44 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ): Promise<Omit<AuthResponseDto, 'accessToken' | 'refreshToken'>> {
     const result = await this.authService.acceptInvitation(acceptInvitationDto);
+
+    // Set HttpOnly cookies
+    response.cookie('accessToken', result.accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 15 * 60 * 1000, // 15 minutes
+    });
+
+    response.cookie('refreshToken', result.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
+
+    // Return response without tokens
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { accessToken, refreshToken, ...responseWithoutTokens } = result;
+    return responseWithoutTokens;
+  }
+
+  @Public()
+  @Post('verify-signup')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Verify signup OTP and activate account' })
+  @ApiResponse({
+    status: 200,
+    description: 'Account verified and activated successfully',
+    type: AuthResponseDto,
+  })
+  @ApiResponse({ status: 400, description: 'Invalid OTP' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async verifySignupOtp(
+    @Body() verifySignupOtpDto: VerifySignupOtpDto,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<Omit<AuthResponseDto, 'accessToken' | 'refreshToken'>> {
+    const result = await this.authService.verifySignupOtp(verifySignupOtpDto);
 
     // Set HttpOnly cookies
     response.cookie('accessToken', result.accessToken, {
@@ -505,6 +565,21 @@ export class AuthController {
       user.userId,
       changeEmailDto,
     );
+    return result;
+  }
+
+  @Public()
+  @Post('verify-token')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Verify JWT access token' })
+  @ApiResponse({
+    status: 200,
+    description: 'Token verification result',
+    type: TokenVerificationResponseDto,
+  })
+  @ApiResponse({ status: 400, description: 'Bad request' })
+  async verifyToken(@Body() verifyTokenDto: VerifyTokenDto) {
+    const result = await this.authService.verifyToken(verifyTokenDto.token);
     return result;
   }
 }

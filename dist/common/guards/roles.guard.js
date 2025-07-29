@@ -23,15 +23,16 @@ let RolesGuard = class RolesGuard {
         if (!requiredRoles) {
             return true;
         }
-        const { user } = context.switchToHttp().getRequest();
-        if (!user) {
-            throw new common_1.ForbiddenException('User not authenticated');
+        const request = context.switchToHttp().getRequest();
+        const user = request.user;
+        if (user && user.role) {
+            const hasRole = requiredRoles.some((role) => user.role === role);
+            if (!hasRole) {
+                throw new common_1.ForbiddenException('Insufficient permissions');
+            }
+            return true;
         }
-        const hasRole = requiredRoles.some((role) => user.role === role);
-        if (!hasRole) {
-            throw new common_1.ForbiddenException('Insufficient permissions');
-        }
-        return true;
+        return false;
     }
 };
 exports.RolesGuard = RolesGuard;
